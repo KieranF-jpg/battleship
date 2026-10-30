@@ -1,0 +1,16 @@
+{
+  "name": "battleship",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Browser Battleship game against an AI opponent",
+  "type": "module",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node --test tests/",
+    "simulate": "node scripts/simulate.js"
+  },
+  "license": "MIT",
+  "devDependencies": {
+    "playwright": "^1.48.2"
+  }
+}

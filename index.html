@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Battleship vs AI</title>
+  <meta name="description" content="Play Battleship in your browser against an AI opponent.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header>
+    <h1>Battleship</h1>
+    <p class="tagline">Sink the enemy fleet before the AI sinks yours.</p>
+  </header>
+
+  <main>
+    <section id="setup" class="panel" aria-labelledby="setup-title">
+      <h2 id="setup-title">1. Deploy your fleet</h2>
+      <p class="hint">Pick a ship, then click your board to place it. Press <kbd>R</kbd> or use Rotate to turn it. Click a placed ship to move it.</p>
+      <div id="ship-picker" class="ship-picker" role="group" aria-label="Ships to place"></div>
+      <div class="controls">
+        <button id="rotate-btn" type="button">Rotate (<span id="orientation-label">Horizontal</span>)</button>
+        <button id="random-btn" type="button">Randomize</button>
+        <button id="clear-btn" type="button">Clear</button>
+      </div>
+      <div class="controls">
+        <label for="difficulty">AI difficulty</label>
+        <select id="difficulty">
+          <option value="easy">Easy</option>
+          <option value="medium">Medium</option>
+          <option value="hard" selected>Hard</option>
+        </select>
+        <button id="start-btn" type="button" class="primary" disabled>Start battle</button>
+      </div>
+    </section>
+
+    <section id="status" class="panel status" aria-live="polite">
+      <p id="status-text">Place your ships to begin.</p>
+      <button id="new-game-btn" type="button" hidden>New game</button>
+    </section>
+
+    <div class="boards">
+      <section class="board-wrap" aria-labelledby="player-title">
+        <h2 id="player-title">Your fleet</h2>
+        <div id="player-board" class="board" role="grid" aria-label="Your board"></div>
+        <ul id="player-fleet" class="fleet" aria-label="Your ships"></ul>
+      </section>
+      <section class="board-wrap" aria-labelledby="enemy-title">
+        <h2 id="enemy-title">Enemy waters</h2>
+        <div id="enemy-board" class="board enemy" role="grid" aria-label="Enemy board"></div>
+        <ul id="enemy-fleet" class="fleet" aria-label="Enemy ships"></ul>
+      </section>
+    </div>
+
+    <section class="panel" aria-labelledby="log-title">
+      <h2 id="log-title">Battle log</h2>
+      <ol id="log" class="log" reversed></ol>
+    </section>
+  </main>
+
+  <dialog id="game-over">
+    <h2 id="result-title"></h2>
+    <p id="result-text"></p>
+    <button id="play-again-btn" type="button" class="primary">Play again</button>
+  </dialog>
+
+  <footer>
+    <a href="https://github.com/KieranF-jpg/battleship">Source on GitHub</a>
+  </footer>
+
+  <script type="module" src="src/ui.js"></script>
+</body>
+</html>
