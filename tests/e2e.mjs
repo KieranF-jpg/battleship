@@ -95,6 +95,10 @@ check(await page.locator('#enemy-board .cell.ship').count() === 17, 'replay reve
 check(await page.locator('#player-board .cell.heat').count() > 0, 'replay shows the AI radar heatmap');
 await page.click('#replay-next');
 check((await page.locator('#replay-label').textContent()) === `Shot 11 of ${total}`, 'next steps forward one shot');
+await page.click('#theme-btn');
+check((await page.locator('#log').textContent()).includes('Ye fired') &&
+  (await page.locator('#replay-label').textContent()) === `Shot 11 of ${total}`, 'switching theme during replay retells the log and keeps the step');
+await page.click('#theme-btn');
 await page.click('#replay-exit');
 check(await page.locator('#replay-bar').isHidden(), 'exit replay hides controls');
 check(await page.locator('#enemy-board .cell.hit, #enemy-board .cell.miss').count() > 30, 'exiting replay restores the final board');
