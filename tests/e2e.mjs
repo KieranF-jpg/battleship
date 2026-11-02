@@ -66,6 +66,7 @@ for (let r = 0; r < 10; r++) {
 }
 await page.waitForFunction(() => document.getElementById('game-over').open, null, { timeout: 15000 });
 const firstGameWon = (await page.locator('#result-title').textContent()).includes('Victory');
+const firstGameAdvice = (await page.locator('#result-extra li').last().textContent()) || '';
 check(true, `game over: ${await page.locator('#result-title').textContent()}`);
 await page.screenshot({ path: 'test-results/game-over.png' });
 
@@ -79,6 +80,7 @@ check(canRestart, 'player can still start a new game after dismissing the dialog
 // Stats and achievements were recorded for the finished game.
 await page.click('#stats-btn');
 check((await page.locator('#stats-body .tile .value').first().textContent()) === '1', 'stats count the finished battle');
+check(firstGameAdvice.startsWith('Tip: '), `result screen gives a tip (${firstGameAdvice})`);
 // Every achievement needs a win, so a lost first game unlocks none.
 const unlocked = await page.locator('#stats-body .badges li.unlocked').count();
 check(firstGameWon ? unlocked >= 1 : unlocked === 0, `achievements match the first game's result (${unlocked} unlocked)`);
@@ -189,6 +191,10 @@ await page.click('#random-btn');
 await page.click('#start-btn');
 await cell('enemy', 0, 0).click();
 check((await page.locator('#log').textContent()).includes('Ye fired at A1'), 'pirate theme flavours the battle log');
+check(await page.locator('.cannonball').count() >= 1, 'pirate shots fire a cannonball');
+await page.locator('.boom').first().waitFor({ state: 'attached', timeout: 2000 }).catch(() => {});
+check(await page.locator('.boom').count() >= 1, 'cannonball landing shows a comic boom');
+check(await page.locator('#parrot').isVisible() && (await page.locator('.parrot-bubble').textContent()).length > 0, 'the parrot heckles each shot');
 await page.waitForFunction(() => document.querySelectorAll('#player-board .cell.hit, #player-board .cell.miss').length === 1);
 await page.click('#theme-btn');
 check(await page.evaluate(() => document.documentElement.dataset.theme) === 'navy' &&
@@ -202,6 +208,39 @@ await page.click('#new-game-btn');
 await page.click('#sound-btn');
 await page.reload();
 check((await page.locator('#sound-btn').textContent()) === 'Sound off', 'mute setting persists across reloads');
+
+// Tips & tricks guide.
+await page.click('#tips-btn');
+check(await page.locator('#tips-dialog').evaluate((d) => d.open) &&
+  (await page.locator('#tips-dialog').textContent()).includes('checkerboard'), 'tips dialog opens with the guide');
+check(await page.locator('#tips-parity i').count() === 100 && await page.locator('#tips-density i').count() === 100 &&
+  await page.locator('#tips-parity i.on').count() === 50, 'tips draw the checkerboard and heatmap');
+await page.click('#tips-close-btn');
+check(!(await page.locator('#tips-dialog').evaluate((d) => d.open)), 'tips dialog closes');
+
+// Pirate finale: the swinging pirate (win) or the kraken (loss), then the result dialog.
+await page.click('#theme-btn');
+check((await page.locator('#tips-title').textContent()).includes("Pirate's Code"), 'pirate theme renames the tips');
+await page.click('#random-btn');
+await page.click('#start-btn');
+let finale = false;
+page.locator('.pirate-swing, .kraken').first().waitFor({ state: 'attached', timeout: 120000 }).then(() => { finale = true; }, () => {});
+for (let r = 0; r < 10; r++) {
+  for (let c = 0; c < 10; c++) {
+    if (await page.locator('#game-over').evaluate((d) => d.open) || finale) break;
+    await page.waitForFunction(() => document.querySelector('.pirate-swing, .kraken') || !document.querySelector('#enemy-board').classList.contains('waiting'));
+    const el = cell('enemy', r, c);
+    if (!finale && await el.isEnabled()) await el.click();
+  }
+}
+await page.locator('.pirate-swing, .kraken').first().waitFor({ state: 'attached', timeout: 15000 }).catch(() => {});
+check(finale || await page.locator('.pirate-swing, .kraken').count() === 1, 'pirate finale plays at the end of the battle');
+check(!(await page.locator('#game-over').evaluate((d) => d.open)), 'result dialog waits for the finale');
+await page.waitForFunction(() => document.getElementById('game-over').open, null, { timeout: 10000 });
+check((await page.locator('#result-extra').textContent()).includes("Cap'n's advice:"), 'pirate result gives the captain\'s advice');
+await page.screenshot({ path: 'test-results/pirate-result.png' });
+await page.click('#close-result-btn');
+await page.click('#theme-btn');
 
 // Broken audio (old browsers, blocked AudioContext) must not stall the battle.
 const noAudio = await context.newPage();

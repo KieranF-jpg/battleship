@@ -118,6 +118,11 @@ const PIRATE = {
   win(t) {
     [587.33, 739.99, 880, 739.99, 880, 1174.66].forEach((f, i) => tone(t + i * 0.12, { type: 'square', from: f, duration: 0.18, peak: 0.12 }));
   },
+  squawk(t) {
+    tone(t, { type: 'sawtooth', from: 1500, to: 2400, duration: 0.07, peak: 0.12 });
+    tone(t + 0.08, { type: 'sawtooth', from: 2200, to: 1300, duration: 0.11, peak: 0.12 });
+    noise(t, { filter: 'bandpass', from: 3200, duration: 0.15, peak: 0.08, q: 3 });
+  },
   lose(t) {
     [440, 415.3, 392, 293.66].forEach((f, i) => tone(t + i * 0.3, { type: 'sawtooth', from: f, to: f * 0.96, duration: 0.5, peak: 0.1 }));
   },
@@ -135,4 +140,18 @@ export function play(name, delay = 0) {
     if (!ac || !variant[name]) return;
     variant[name](ac.currentTime + delay);
   } catch { /* audio unavailable */ }
+}
+
+// A gravelly pirate voice via the browser's speech synthesis, where available.
+export function say(text) {
+  if (muted) return;
+  try {
+    const speech = globalThis.speechSynthesis;
+    if (!speech || !globalThis.SpeechSynthesisUtterance) return;
+    const u = new SpeechSynthesisUtterance(text);
+    u.pitch = 0.3;
+    u.rate = 0.85;
+    speech.cancel();
+    speech.speak(u);
+  } catch { /* speech unavailable */ }
 }
