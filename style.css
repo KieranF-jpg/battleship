@@ -289,6 +289,10 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
   content: attr(data-sonar); position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
   font-weight: 800; color: #9ff3ea; text-shadow: 0 0 3px #000;
 }
+.cell[data-sonar]:is(.miss, .hit, .decoy, .ship)::before {
+  content: attr(data-sonar); position: absolute; top: 1px; right: 3px; left: auto; bottom: auto; width: auto; height: auto;
+  background: none; font-size: 0.7rem; font-weight: 800; line-height: 1; color: #9ff3ea; text-shadow: 0 0 3px #000; z-index: 2;
+}
 .cell.decoy { background: #8a6d3b; }
 .cell.decoy::after { content: "?"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; }
 .cell.decoy-buoy::after {
