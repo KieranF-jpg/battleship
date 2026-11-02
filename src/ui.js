@@ -644,14 +644,14 @@ function renderSoundButton() {
 
 // Rewrites the status line and battle log in the current theme's wording.
 function retellBattle() {
-  if (replayState) return setReplayStep(replayState.step);
   els.log.replaceChildren();
   if (match) log(match.mode === 'daily' ? theme.dailyLog(dailyNumber(match.date)) : theme.startLog(match.difficulty), 'important');
   for (const m of game.moves) log(describe(m, m.who), logClass(m, m.who));
   if (game.phase === 'placement') setStatus(theme.setup);
   else if (game.phase === 'over') {
     log(game.winner === 'player' ? theme.wonLog : theme.lostLog, 'important');
-    setStatus(game.winner === 'player' ? theme.victory : theme.defeat);
+    if (replayState) setReplayStep(replayState.step);
+    else setStatus(game.winner === 'player' ? theme.victory : theme.defeat);
   } else setStatus(game.turn === 'player' ? theme.yourTurn : theme.aiming);
 }
 

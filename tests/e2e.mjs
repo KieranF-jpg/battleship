@@ -65,6 +65,7 @@ for (let r = 0; r < 10; r++) {
   }
 }
 await page.waitForFunction(() => document.getElementById('game-over').open, null, { timeout: 15000 });
+const firstGameWon = (await page.locator('#result-title').textContent()).includes('Victory');
 check(true, `game over: ${await page.locator('#result-title').textContent()}`);
 await page.screenshot({ path: 'test-results/game-over.png' });
 
@@ -78,7 +79,9 @@ check(canRestart, 'player can still start a new game after dismissing the dialog
 // Stats and achievements were recorded for the finished game.
 await page.click('#stats-btn');
 check((await page.locator('#stats-body .tile .value').first().textContent()) === '1', 'stats count the finished battle');
-check(await page.locator('#stats-body .badges li.unlocked').count() >= 1, 'an achievement is unlocked after the first game');
+// Every achievement needs a win, so a lost first game unlocks none.
+const unlocked = await page.locator('#stats-body .badges li.unlocked').count();
+check(firstGameWon ? unlocked >= 1 : unlocked === 0, `achievements match the first game's result (${unlocked} unlocked)`);
 await page.click('#stats-close-btn');
 
 // Replay the finished game with the AI radar.
@@ -95,6 +98,10 @@ check(await page.locator('#enemy-board .cell.ship').count() === 17, 'replay reve
 check(await page.locator('#player-board .cell.heat').count() > 0, 'replay shows the AI radar heatmap');
 await page.click('#replay-next');
 check((await page.locator('#replay-label').textContent()) === `Shot 11 of ${total}`, 'next steps forward one shot');
+await page.click('#theme-btn');
+check((await page.locator('#log').textContent()).includes('Ye fired') &&
+  (await page.locator('#replay-label').textContent()) === `Shot 11 of ${total}`, 'switching theme during replay retells the log and keeps the step');
+await page.click('#theme-btn');
 await page.click('#replay-exit');
 check(await page.locator('#replay-bar').isHidden(), 'exit replay hides controls');
 check(await page.locator('#enemy-board .cell.hit, #enemy-board .cell.miss').count() > 30, 'exiting replay restores the final board');
