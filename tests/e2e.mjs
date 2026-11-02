@@ -268,21 +268,27 @@ check(await page.locator('#enemy-board .cell.sonar').count() === 9 &&
 check(await enemyShots() === 0, 'sonar does not fire a shot');
 await playerTurn();
 check(await page.locator('#pw-sonar').isDisabled(), 'sonar is used up after one ping');
+await page.click('#pw-shot');
+const firedAt = cell('enemy', 9, 0);
+await firedAt.click();
+await playerTurn();
+check(await firedAt.isDisabled(), 'a fired square cannot be shot again with the cannon');
 await page.click('#pw-broadside');
+check(await firedAt.isEnabled(), 'a broadside can start on a fired square when its line has targets');
 const arrow = await page.locator('#pw-broadside').textContent();
 await page.click('#pw-broadside');
 check((await page.locator('#pw-broadside').textContent()) !== arrow, 'tapping broadside again turns it');
 await cell('enemy', 0, 7).hover();
 check(await page.locator('#enemy-board .cell.aim').count() === 3, 'broadside aims at 3 squares');
 await cell('enemy', 0, 7).click();
-check(await enemyShots() === 3 && (await page.locator('#log').textContent()).includes('fired a broadside at'), 'broadside fires 3 shots in one turn');
+check(await enemyShots() === 4 && (await page.locator('#log').textContent()).includes('fired a broadside at'), 'broadside fires 3 shots in one turn');
 await playerTurn();
 check(await page.locator('#pw-broadside').isDisabled() && await page.locator('#pw-shot').getAttribute('aria-pressed') === 'true',
   'broadside is used up and the cannon is selected again');
 await page.reload();
 await page.locator('#powerups').waitFor();
-check(await page.locator('#enemy-board .cell.sonar').count() === 9 && await enemyShots() === 3 &&
-  (await page.locator('#pw-broadside').textContent()).includes('×0'), 'a power-ups battle resumes after reload');
+check(await page.locator('#enemy-board .cell.sonar').count() === 9 && await enemyShots() === 4 &&
+  (await page.locator('#pw-broadside').textContent()).includes('×0') && await enemyShots() === 4, 'a power-ups battle resumes after reload');
 await page.click('#new-game-btn');
 await page.selectOption('#mode', 'classic');
 

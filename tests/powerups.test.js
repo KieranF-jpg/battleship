@@ -95,6 +95,15 @@ test('the AI uses its power-ups and every power-up game finishes', () => {
   }
 });
 
+test('random fill keeps the ships already placed', () => {
+  const g = new Game({ ai: new AI({ difficulty: 'easy' }) });
+  g.player.placeShip(FLEET[0], 0, 0, HORIZONTAL);
+  g.player.placeMissingRandomly(FLEET, mulberry32(5));
+  assert.equal(g.player.ships.length, FLEET.length);
+  assert.deepEqual(g.player.ships.find((s) => s.name === 'Carrier').cells.slice(0, 2), [[0, 0], [0, 1]]);
+  assert.ok(g.allPlayerShipsPlaced());
+});
+
 test('an empty AI sonar ping rules out the whole area', () => {
   const ai = new AI({ difficulty: 'hard', rng: mulberry32(1) });
   ai.recordSonar(5, 5, 0);

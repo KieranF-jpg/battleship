@@ -558,6 +558,14 @@ function aimCells() {
   return new Set(cells.map(([ar, ac]) => key(ar, ac)));
 }
 
+// Sonar can centre on a fired square, and a broadside can start on one if its line still has a target.
+function canAimAt(g, r, c) {
+  if (!g.charges.player[weapon]) return false;
+  if (weapon === 'sonar') return true;
+  return weapon === 'broadside' && shipCells(r, c, BROADSIDE_LENGTH, orientation)
+    .some(([ar, ac]) => g.enemy.inBounds(ar, ac) && !g.enemy.isShot(ar, ac));
+}
+
 function renderPowerups(g) {
   els.powerups.hidden = !g.powerups || g.phase === 'placement';
   if (els.powerups.hidden) return;
@@ -637,7 +645,7 @@ function renderEnemyBoard(g) {
       markSonar(el, mark);
       if (aim?.has(key(r, c))) el.classList.add('aim');
       if (last === key(r, c)) el.classList.add('last');
-      el.disabled = !playing || g.turn !== 'player' || Boolean(shot);
+      el.disabled = !playing || g.turn !== 'player' || (Boolean(shot) && !canAimAt(g, r, c));
       const desc = shot ? (sunk ? `sunk ${shipName(ship.name)}` : shot) : 'unknown';
       const sonarDesc = mark?.centre ? `, sonar found ${mark.count}` : '';
       el.setAttribute('aria-label', `Enemy board ${coord(r, c)}: ${desc}${sonarDesc}`);
@@ -827,7 +835,13 @@ function renderCampaign() {
     btn.addEventListener('click', () => {
       els.campaignDialog.close();
       if (game.phase !== 'placement') newGame();
-      if (!game.allPlayerShipsPlaced()) game.player.placeFleetRandomly();
+      if (!game.allPlayerShipsPlaced()) {
+        try {
+          game.player.placeMissingRandomly();
+        } catch {
+          game.player.placeFleetRandomly();
+        }
+      }
       startMatch('campaign', cap);
     });
     li.appendChild(btn);

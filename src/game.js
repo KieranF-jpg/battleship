@@ -105,7 +105,13 @@ export class Board {
 
   placeFleetRandomly(fleet = FLEET, rng = Math.random) {
     this.ships = [];
-    for (const spec of fleet) {
+    this.placeMissingRandomly(fleet, rng);
+  }
+
+  // Places only the ships not already on the board, around the ones that are.
+  placeMissingRandomly(fleet = FLEET, rng = Math.random) {
+    const placed = new Set(this.ships.map((s) => s.name));
+    for (const spec of fleet.filter((s) => !placed.has(s.name))) {
       const options = [];
       for (const orientation of [HORIZONTAL, VERTICAL]) {
         for (let r = 0; r < this.size; r++) {
