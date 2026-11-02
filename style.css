@@ -14,6 +14,10 @@
   --text: #eef4fa;
   --muted: #9fb6cc;
   --accent: #f5b83d;
+  --glow: #15406a;
+  --btn: #1f4a75;
+  --btn-hover: #2a5d90;
+  --inset: #0b1d33;
   --cell: clamp(22px, 3.6vw, 36px);
 }
 
@@ -22,7 +26,7 @@
 body {
   margin: 0;
   font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  background: radial-gradient(circle at top, #15406a, var(--bg) 60%);
+  background: radial-gradient(circle at top, var(--glow), var(--bg) 60%);
   color: var(--text);
   min-height: 100vh;
 }
@@ -47,13 +51,13 @@ kbd { background: #0006; border-radius: 4px; padding: 0 0.3em; border: 1px solid
 button, select {
   font: inherit;
   color: var(--text);
-  background: #1f4a75;
+  background: var(--btn);
   border: 1px solid #ffffff33;
   border-radius: 6px;
   padding: 0.4rem 0.8rem;
   cursor: pointer;
 }
-button:hover:not(:disabled), select:hover { background: #2a5d90; }
+button:hover:not(:disabled), select:hover { background: var(--btn-hover); }
 button:disabled { opacity: 0.45; cursor: not-allowed; }
 button.primary { background: var(--accent); color: #1a1a1a; border-color: transparent; font-weight: 700; }
 button.primary:hover:not(:disabled) { background: #ffc95e; }
@@ -167,13 +171,13 @@ dialog[open] { animation: pop 0.25s ease-out; }
 #stats-dialog { width: min(560px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); }
 #stats-dialog h3 { margin: 1rem 0 0.5rem; font-size: 1rem; }
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
-.tile { background: #0b1d33; border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; }
+.tile { background: var(--inset); border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; }
 .tile .value { font-size: 1.4rem; font-weight: 700; }
 .tile .label { font-size: 0.75rem; color: var(--muted); }
 .by-difficulty { width: 100%; margin-top: 0.75rem; border-collapse: collapse; font-size: 0.9rem; }
 .by-difficulty th, .by-difficulty td { padding: 0.25rem 0.5rem; border-bottom: 1px solid #ffffff1a; }
 .badges { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; text-align: left; }
-.badges li { background: #0b1d33; border-radius: 8px; padding: 0.4rem 0.6rem; display: flex; flex-direction: column; font-size: 0.85rem; }
+.badges li { background: var(--inset); border-radius: 8px; padding: 0.4rem 0.6rem; display: flex; flex-direction: column; font-size: 0.85rem; }
 .badges li span { color: var(--muted); font-size: 0.75rem; }
 .badges li.unlocked strong { color: var(--accent); }
 .badges li.locked { opacity: 0.55; }
@@ -210,6 +214,67 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 20; }
 .confetti i { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; animation: fall linear forwards; }
 @keyframes fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); } }
+
+/* ---------- Pirate theme ---------- */
+:root[data-theme="pirate"] {
+  --bg: #1e140a;
+  --panel: #3a2715;
+  --water: #2b6a6e;
+  --water-hover: #3a868a;
+  --ship: #a8743f;
+  --hull-light: #b9824a;
+  --hull-dark: #5e3a1a;
+  --miss: #f3ead2;
+  --sunk: #4a1a10;
+  --text: #f6ead0;
+  --muted: #cfb68a;
+  --accent: #f2c14e;
+  --glow: #4a3218;
+  --btn: #5a3b1c;
+  --btn-hover: #74502a;
+  --inset: #24170b;
+}
+[data-theme="pirate"] h1, [data-theme="pirate"] h2, [data-theme="pirate"] h3, [data-theme="pirate"] .status {
+  font-family: "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+[data-theme="pirate"] header h1 { letter-spacing: 0.06em; color: var(--accent); text-shadow: 0 2px 0 #000, 0 0 18px #f2c14e55; }
+[data-theme="pirate"] .panel, [data-theme="pirate"] dialog {
+  background: repeating-linear-gradient(90deg, #ffffff06 0 2px, transparent 2px 46px), linear-gradient(#412c17, #33220f);
+  border: 1px solid #d9b26a33;
+}
+[data-theme="pirate"] button, [data-theme="pirate"] select { border-color: #d9b26a55; }
+[data-theme="pirate"] #theme-btn { border-color: var(--accent); color: var(--accent); }
+[data-theme="pirate"] button.primary { background: linear-gradient(#f7d66e, #d9a52c); color: #2a1a08; }
+/* The boards are drawn on a parchment sea chart. */
+[data-theme="pirate"] .board {
+  padding: 6px; border-radius: 6px;
+  background: radial-gradient(ellipse at center, #ecdcb0 40%, #c9a467 100%);
+  box-shadow: 0 6px 20px #000a, inset 0 0 24px #7a52207a;
+}
+[data-theme="pirate"] .board .label { color: #5a3a17; font-family: Georgia, serif; font-weight: 700; }
+[data-theme="pirate"] .cell {
+  background: repeating-linear-gradient(135deg, #ffffff12 0 2px, transparent 2px 7px), var(--water);
+}
+[data-theme="pirate"] .cell:hover:not(:disabled) { background: repeating-linear-gradient(135deg, #ffffff18 0 2px, transparent 2px 7px), var(--water-hover); }
+/* Wooden hulls with planks, and a sail on every segment behind the bow. */
+[data-theme="pirate"] .cell.ship { background: repeating-linear-gradient(to bottom, transparent 0 30%, #0000002e 30% 34%), var(--hull); }
+[data-theme="pirate"] .cell.ship.v { background: repeating-linear-gradient(to right, transparent 0 30%, #0000002e 30% 34%), var(--hull); }
+[data-theme="pirate"] .cell.ship:not(.bow):not(.hit):not(.miss)::after {
+  content: ""; position: absolute; inset: 14% 24%;
+  background: linear-gradient(135deg, #fffaf0, #e6d6b0);
+  clip-path: polygon(0 0, 100% 15%, 100% 85%, 0 100%, 12% 50%);
+  filter: drop-shadow(0 1px 1px #0006);
+}
+[data-theme="pirate"] .cell.ship.v:not(.bow):not(.hit):not(.miss)::after { clip-path: polygon(0 0, 100% 0, 85% 100%, 50% 88%, 15% 100%); }
+[data-theme="pirate"] .cell.ship.revealed { opacity: 0.6; }
+[data-theme="pirate"] .cell.hit::after { color: #ffe08a; text-shadow: 0 0 4px #000; }
+[data-theme="pirate"] .fx-miss { border-color: #fff8e6; border-width: 3px; }
+[data-theme="pirate"] .fx-hit { background: radial-gradient(circle, #fff 0 10%, #ffd36b 28%, #e2463b 52%, #3a2a1a99 66%, transparent 74%); }
+/* Victory rains gold doubloons instead of confetti. */
+.confetti.coins i {
+  width: 14px; height: 14px; border-radius: 50%;
+  box-shadow: inset 0 0 0 2px #a8781d, inset 2px 2px 0 3px #fff3;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }

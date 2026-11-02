@@ -92,8 +92,44 @@ const SOUNDS = {
   },
 };
 
+// Pirate theme: cannon booms, wooden knocks and a sea-shanty fanfare.
+const PIRATE = {
+  place(t) {
+    tone(t, { type: 'triangle', from: 190, to: 120, duration: 0.07, peak: 0.35 });
+    noise(t, { filter: 'bandpass', from: 900, duration: 0.05, peak: 0.2, q: 4 });
+  },
+  fire(t) {
+    noise(t, { from: 900, to: 60, duration: 0.55, peak: 0.8 });
+    tone(t, { from: 80, to: 32, duration: 0.4, peak: 0.7 });
+  },
+  miss(t) {
+    noise(t + 0.08, { from: 2600, to: 220, duration: 0.7, peak: 0.4, attack: 0.03 });
+    tone(t + 0.08, { from: 360, to: 110, duration: 0.25, peak: 0.12 });
+  },
+  hit(t) {
+    noise(t, { from: 1200, to: 90, duration: 0.7, peak: 0.9 });
+    noise(t + 0.05, { filter: 'bandpass', from: 1600, to: 500, duration: 0.25, peak: 0.35, q: 6 });
+  },
+  sunk(t) {
+    PIRATE.hit(t);
+    tone(t + 0.15, { type: 'sawtooth', from: 160, to: 70, duration: 1.2, peak: 0.08, attack: 0.2 });
+    noise(t + 0.3, { from: 500, to: 60, duration: 1.4, peak: 0.5, attack: 0.1 });
+  },
+  win(t) {
+    [587.33, 739.99, 880, 739.99, 880, 1174.66].forEach((f, i) => tone(t + i * 0.12, { type: 'square', from: f, duration: 0.18, peak: 0.12 }));
+  },
+  lose(t) {
+    [440, 415.3, 392, 293.66].forEach((f, i) => tone(t + i * 0.3, { type: 'sawtooth', from: f, to: f * 0.96, duration: 0.5, peak: 0.1 }));
+  },
+};
+
+let variant = SOUNDS;
+export function setVariant(name) {
+  variant = name === 'pirate' ? { ...SOUNDS, ...PIRATE } : SOUNDS;
+}
+
 export function play(name, delay = 0) {
   const ac = audio();
-  if (!ac || !SOUNDS[name]) return;
-  SOUNDS[name](ac.currentTime + delay);
+  if (!ac || !variant[name]) return;
+  variant[name](ac.currentTime + delay);
 }

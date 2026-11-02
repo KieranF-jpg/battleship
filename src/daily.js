@@ -24,7 +24,7 @@ export function dailySeed(dateKey) {
 const EMOJI = { miss: '🌊', hit: '🟥', sunk: '💥' };
 
 // Shot-by-shot emoji grid: shows how the game went without giving away ship positions.
-export function shareText({ date, won, shots, hits, sequence }, url = '') {
+export function shareText({ date, won, shots, hits, sequence }, url = '', title = '⚓ Battleship Daily') {
   const accuracy = shots ? Math.round((hits / shots) * 100) : 0;
   const rows = [];
   for (let i = 0; i < sequence.length; i += 10) {
@@ -32,7 +32,7 @@ export function shareText({ date, won, shots, hits, sequence }, url = '') {
   }
   const n = `${shots} shot${shots === 1 ? '' : 's'}`;
   const headline = won ? `Victory in ${n} · ${accuracy}% accuracy` : `Defeated after ${n} · ${accuracy}% accuracy`;
-  const lines = [`⚓ Battleship Daily #${dailyNumber(date)}`, headline, '', ...rows];
+  const lines = [`${title} #${dailyNumber(date)}`, headline, '', ...rows];
   if (url) lines.push('', url);
   return lines.join('\n');
 }

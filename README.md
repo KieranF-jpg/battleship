@@ -19,6 +19,7 @@ A browser Battleship game where you play against a computer opponent.
 - **Stats and achievements.** Wins, win rate, streaks, fewest shots to win, accuracy, a record per difficulty and 11 achievements. Everything is stored in your browser's `localStorage`. Abandoning a battle counts as a loss.
 - **Replay with AI radar.** After a game, **Watch replay** steps through every shot (play, scrub, or use ← →). The AI radar heatmap shows where the AI's probability model expected your ships at each point. You can also switch on the radar during a live battle.
 - **Resume.** An unfinished battle is saved after every shot and picks up where you left off after a reload.
+- **Pirate theme.** The ☠️ **Pirate theme** button reskins the game: a parchment sea chart, wooden hulls with sails, a Man-o'-War, Galleon, Frigate, Brigantine and Sloop, pirate wording, cannon sounds and a shower of gold doubloons when you win. The choice is remembered. Gameplay, stats, saves and the daily fleet are the same in both themes.
 - **Game feel.** Splash and explosion effects, sinking flashes, screen shake, burning hits, ship hulls with a bow and stern, a victory confetti burst and synthesised sound effects (Web Audio, no audio files) with a remembered mute toggle. Animations are turned off when the system asks for reduced motion.
 
 Every game has a random seed. The enemy fleet and every AI shot come from that seed, so a game is fully described by its seed, difficulty, your fleet and your shots (`src/match.js`). Resume, replay and the daily challenge all rebuild games from that record.
@@ -43,7 +44,8 @@ src/ai.js         the AI opponent at three difficulty levels
 src/match.js      seeded matches: save, resume and replay a game from a small record
 src/stats.js      lifetime stats, achievements and daily results (localStorage)
 src/daily.js      daily challenge seed, numbering and share text
-src/sound.js      synthesised sound effects and the mute setting
+src/sound.js      synthesised sound effects (navy and pirate sets) and the mute setting
+src/theme.js      navy and pirate themes: wording, ship names, colours
 src/rng.js        seeded random numbers
 src/ui.js         connects the rules to the page: rendering, clicks, drag and drop, effects, AI turn timing
 tests/            unit tests (node:test) and a browser playthrough (Playwright)

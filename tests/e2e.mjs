@@ -169,6 +169,24 @@ await page.click('#stats-btn');
 check((await page.locator('#stats-body .tile .value').first().textContent()) === '3', 'abandoned battles count in stats');
 await page.click('#stats-close-btn');
 
+// Pirate theme: switchable, remembered, and renames the fleet without touching saves.
+await page.click('#theme-btn');
+check(await page.evaluate(() => document.documentElement.dataset.theme) === 'pirate' &&
+  (await page.locator('h1').textContent()) === 'Pirate Battleship', 'pirate theme switches on');
+check((await page.locator('#ship-picker').textContent()).includes('Galleon') &&
+  (await page.locator('#start-btn').textContent()) === 'Set sail!', 'pirate theme renames ships and buttons');
+await page.reload();
+check(await page.evaluate(() => document.documentElement.dataset.theme) === 'pirate' &&
+  (await page.locator('#theme-btn').getAttribute('aria-pressed')) === 'true', 'pirate theme persists across reloads');
+await page.click('#random-btn');
+await page.click('#start-btn');
+await cell('enemy', 0, 0).click();
+check((await page.locator('#log').textContent()).includes('Ye fired at A1'), 'pirate theme flavours the battle log');
+await page.click('#new-game-btn');
+await page.click('#theme-btn');
+check(await page.evaluate(() => document.documentElement.dataset.theme) === 'navy' &&
+  (await page.locator('h1').textContent()) === 'Battleship', 'navy theme switches back');
+
 // Mute is remembered.
 await page.click('#sound-btn');
 await page.reload();
