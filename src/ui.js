@@ -534,12 +534,20 @@ function celebrate() {
   setTimeout(() => layer.remove(), 3800);
 }
 
+// Re-show the popover so toasts sit in the top layer above any open modal dialog.
+function raiseToasts() {
+  if (!els.toasts.showPopover) return;
+  if (els.toasts.matches(':popover-open')) els.toasts.hidePopover();
+  els.toasts.showPopover();
+}
+
 function toast(title, body = '') {
   const el = document.createElement('div');
   el.className = 'toast';
   el.append(Object.assign(document.createElement('strong'), { textContent: title }));
   if (body) el.append(Object.assign(document.createElement('span'), { textContent: body }));
   els.toasts.appendChild(el);
+  raiseToasts();
   setTimeout(() => el.classList.add('out'), 3800);
   setTimeout(() => el.remove(), 4300);
 }
@@ -628,7 +636,16 @@ function renderSoundButton() {
 
 function rotate() {
   orientation = orientation === HORIZONTAL ? VERTICAL : HORIZONTAL;
+  if (drag?.moved) updateDragHover();
   render();
+}
+
+function updateDragHover() {
+  const at = drag.at;
+  hoverCell = at && [
+    at[0] - (orientation === VERTICAL ? drag.offset : 0),
+    at[1] - (orientation === HORIZONTAL ? drag.offset : 0),
+  ];
 }
 
 function originOf(ship) {
@@ -692,10 +709,8 @@ document.addEventListener('pointermove', (e) => {
     render();
   }
   e.preventDefault();
-  hoverCell = at && [
-    at[0] - (orientation === VERTICAL ? drag.offset : 0),
-    at[1] - (orientation === HORIZONTAL ? drag.offset : 0),
-  ];
+  drag.at = at;
+  updateDragHover();
   renderPlayerBoard(game);
 });
 

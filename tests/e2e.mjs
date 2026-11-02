@@ -128,6 +128,13 @@ check(await cell('player', 6, 2).evaluate((e) => e.classList.contains('bow')) &&
 await dragTo(cell('player', 6, 4), cell('player', 6, 9));
 check(await cell('player', 6, 2).evaluate((e) => e.classList.contains('bow')) &&
   await page.locator('#player-board .cell.ship').count() === 5, 'dropping off the board snaps the ship back');
+await page.mouse.move(...await centre(cell('player', 6, 4)));
+await page.mouse.down();
+await page.mouse.move(...await centre(cell('player', 4, 4)), { steps: 8 });
+await page.keyboard.press('r');
+await page.mouse.up();
+check(await cell('player', 2, 4).evaluate((e) => e.classList.contains('bow')) &&
+  await cell('player', 6, 4).evaluate((e) => e.classList.contains('stern')), 'rotating mid-drag pivots around the grabbed cell');
 
 // Saved game resumes after a reload, and the AI radar can be shown live.
 await page.click('#random-btn');
@@ -155,6 +162,7 @@ await page.click('#new-game-btn');
 check((await page.locator('#daily-btn').textContent()).includes('lost · Share result'), 'daily challenge is one attempt per day');
 await page.click('#daily-btn');
 await page.locator('.toast', { hasText: 'Result copied' }).waitFor();
+check(await page.locator('#toasts').evaluate((e) => e.matches(':popover-open')), 'toasts render in the top layer above dialogs');
 const shared = await page.evaluate(() => navigator.clipboard.readText());
 check(shared.startsWith('⚓ Battleship Daily #') && shared.includes('Defeated after 1 shot ·'), 'share copies the daily result');
 await page.click('#stats-btn');
