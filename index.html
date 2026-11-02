@@ -16,6 +16,7 @@
     <p class="tagline" data-text="tagline">Sink the enemy fleet before the AI sinks yours.</p>
     <div class="toolbar">
       <button id="stats-btn" type="button">Stats &amp; achievements</button>
+      <button id="tips-btn" type="button">Tips &amp; tricks</button>
       <button id="sound-btn" type="button" aria-pressed="true">Sound on</button>
       <button id="theme-btn" type="button" aria-pressed="false">☠️ Pirate theme</button>
     </div>
@@ -47,6 +48,7 @@
 
     <section id="status" class="panel status" aria-live="polite">
       <p id="status-text">Place your ships to begin.</p>
+      <div id="parrot" class="parrot" aria-hidden="true"><span class="parrot-bubble"></span><span class="parrot-bird">🦜</span></div>
       <button id="new-game-btn" type="button" hidden>New game</button>
     </section>
 
@@ -100,6 +102,38 @@
     <div class="dialog-actions">
       <button id="stats-close-btn" type="button" class="primary">Close</button>
       <button id="stats-reset-btn" type="button">Reset stats</button>
+    </div>
+  </dialog>
+
+  <dialog id="tips-dialog" aria-labelledby="tips-title">
+    <h2 id="tips-title" data-text="tipsTitle">Tips &amp; tricks</h2>
+    <div class="tips">
+      <p class="tips-intro">Battleship looks like luck, but good captains sink the fleet in far fewer shots. Here's how.</p>
+      <h3>1. Hunt on a checkerboard</h3>
+      <p>Every ship covers at least 2 squares, so firing only at the gold squares below is guaranteed to find every ship in at most 50 shots instead of 100. Once the 2-square ship is sunk, widen the gap to every third square.</p>
+      <div id="tips-parity" class="mini" aria-label="Checkerboard hunting pattern" role="img"></div>
+      <h3>2. Start in the middle</h3>
+      <p>More ship positions pass through the centre than the edges. This heatmap shows how many ways the fleet can cover each square on an empty board: brighter means a ship is more likely to be there.</p>
+      <div id="tips-density" class="mini" aria-label="Heatmap of likely ship positions" role="img"></div>
+      <h3>3. After a hit, finish the job</h3>
+      <p>Fire at the four squares around the hit. When you find a second hit you know the direction: keep going along that line, and when you reach water, go back and finish the other end.</p>
+      <h3>4. Watch for ships side by side</h3>
+      <p>If a line of hits is longer than the ship you just sank, two ships are touching. Check the fleet list under the board to see which ships are still afloat.</p>
+      <h3>5. Skip gaps that are too small</h3>
+      <p>Keep track of what's left. If only the 5-square ship remains, don't fire into any gap of water shorter than 5 squares.</p>
+      <h3>6. Hide your fleet well</h3>
+      <p>Change your layout every game and avoid neat patterns. The Hard AI plays the odds, so edges and corners are where it looks last, and ships touching each other can confuse its follow-up shots.</p>
+      <h3>7. Know your enemy</h3>
+      <ul>
+        <li><strong>Easy</strong> fires at random.</li>
+        <li><strong>Medium</strong> hunts on a checkerboard and follows up hits.</li>
+        <li><strong>Hard</strong> works out the odds for every square, like the heatmap above, after every shot.</li>
+      </ul>
+      <h3>8. Learn from every battle</h3>
+      <p>After a game, choose <strong>Watch replay</strong> and turn on <strong>AI radar</strong> to see where the AI thought your ships were. Stats track your best accuracy and fewest shots to win.</p>
+    </div>
+    <div class="dialog-actions">
+      <button id="tips-close-btn" type="button" class="primary">Got it</button>
     </div>
   </dialog>
 

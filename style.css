@@ -277,6 +277,86 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
   box-shadow: inset 0 0 0 2px #a8781d, inset 2px 2px 0 3px #fff3;
 }
 
+/* Over-the-top pirate effects. */
+.parrot { display: none; }
+[data-theme="pirate"] .status { position: relative; }
+[data-theme="pirate"] .parrot { display: flex; align-items: center; gap: 0.4rem; }
+.parrot-bird { font-size: 1.8rem; display: inline-block; transform: scaleX(-1); }
+.parrot-bubble {
+  background: #fff8e6; color: #3a2715; border-radius: 12px; padding: 0.2rem 0.6rem; font-size: 0.85rem;
+  font-weight: 700; max-width: 16em; opacity: 0; transition: opacity 0.2s;
+}
+.parrot-bubble:empty { display: none; }
+.parrot.talk .parrot-bubble { opacity: 1; }
+.parrot.talk .parrot-bird { animation: squawk 0.5s ease-in-out; }
+@keyframes squawk { 0%, 100% { transform: scaleX(-1) rotate(0); } 25% { transform: scaleX(-1) rotate(-18deg) translateY(-6px); } 60% { transform: scaleX(-1) rotate(12deg); } }
+[data-theme="pirate"] header h1 { animation: bob 4s ease-in-out infinite; }
+@keyframes bob { 0%, 100% { transform: rotate(-1.2deg); } 50% { transform: rotate(1.2deg) translateY(-2px); } }
+
+.cell.pending:not(.ship) { background: var(--water); }
+.cell.pending::after, .cell.pending::before { visibility: hidden; }
+.cannonball {
+  position: fixed; left: -9px; top: -9px; width: 18px; height: 18px; border-radius: 50%; z-index: 25; pointer-events: none;
+  background: radial-gradient(circle at 35% 35%, #777, #111 60%); box-shadow: 0 0 10px #ff9d2e88;
+}
+.boom {
+  position: fixed; z-index: 26; pointer-events: none; font: 900 1.6rem/1 Impact, "Arial Black", sans-serif;
+  color: #ffd84a; -webkit-text-stroke: 2px #6b1a0a; text-shadow: 3px 3px 0 #6b1a0a; white-space: nowrap;
+  animation: boom 1s ease-out forwards;
+}
+.boom-miss { color: #bfefff; -webkit-text-stroke-color: #0b3d5c; text-shadow: 3px 3px 0 #0b3d5c; }
+.boom-sunk { font-size: 2.3rem; color: #ff7a2e; }
+@keyframes boom {
+  0% { transform: translate(-50%, -50%) scale(0.2) rotate(var(--tilt)); opacity: 1; }
+  25% { transform: translate(-50%, -90%) scale(1.25) rotate(var(--tilt)); }
+  70% { opacity: 1; }
+  100% { transform: translate(-50%, -150%) scale(1) rotate(var(--tilt)); opacity: 0; }
+}
+
+.pirate-swing { position: fixed; left: 50%; top: -4vh; z-index: 30; pointer-events: none; animation: fade-out 0.4s 2.9s forwards; }
+.pirate-swing .rope {
+  position: absolute; left: -2px; top: 0; width: 5px; height: 52vh; transform-origin: top center;
+  background: repeating-linear-gradient(170deg, #c9a467 0 4px, #8b6232 4px 8px);
+  animation: swing 3s ease-in-out forwards;
+}
+.pirate-swing .swinger { position: absolute; top: 100%; left: 50%; transform: translate(-50%, -8px); }
+.pirate-swing .arr {
+  position: absolute; left: 80%; top: 10px; font: 900 2rem/1 Impact, "Arial Black", sans-serif; color: #ffd84a;
+  -webkit-text-stroke: 2px #3a1a0a; text-shadow: 3px 3px 0 #3a1a0a; opacity: 0; animation: arr 3s forwards;
+}
+@keyframes swing {
+  0% { transform: rotate(-82deg); } 22% { transform: rotate(68deg); } 44% { transform: rotate(-46deg); }
+  64% { transform: rotate(30deg); } 82% { transform: rotate(-12deg); } 100% { transform: rotate(0deg); }
+}
+@keyframes arr { 0%, 15% { opacity: 0; transform: scale(0.3); } 25% { opacity: 1; transform: scale(1.3); } 35%, 100% { opacity: 1; transform: scale(1); } }
+@keyframes fade-out { to { opacity: 0; } }
+
+.kraken { position: fixed; inset: 0; z-index: 30; pointer-events: none; overflow: hidden; animation: fade-out 0.4s 2.9s forwards; }
+.kraken .tentacle {
+  position: absolute; bottom: -2vh; width: 70px; height: 48vh; transform-origin: bottom center;
+  transform: translateY(105%); animation: tentacle 3s var(--d) ease-in-out forwards;
+}
+.kraken .tentacle svg { width: 100%; height: 100%; transform: scaleX(var(--flip)); }
+.kraken-ship { position: absolute; left: 50%; bottom: 18vh; font-size: 4rem; transform: translateX(-50%); animation: dragged 3s ease-in forwards; }
+.kraken-eye { position: absolute; left: 50%; bottom: -1vh; font-size: 5rem; transform: translate(-50%, 120%); animation: peek 3s ease-in-out forwards; }
+@keyframes tentacle {
+  0% { transform: translateY(105%) rotate(0); } 30% { transform: translateY(8%) rotate(calc(var(--flip) * -10deg)); }
+  55% { transform: translateY(4%) rotate(calc(var(--flip) * 12deg)); } 75% { transform: translateY(12%) rotate(calc(var(--flip) * -6deg)); }
+  100% { transform: translateY(105%) rotate(0); }
+}
+@keyframes dragged { 0%, 40% { transform: translateX(-50%) rotate(0); } 55% { transform: translateX(-50%) rotate(-25deg); } 100% { transform: translate(-50%, 40vh) rotate(-80deg); opacity: 0.4; } }
+@keyframes peek { 0%, 20% { transform: translate(-50%, 120%); } 45%, 75% { transform: translate(-50%, 10%); } 100% { transform: translate(-50%, 120%); } }
+
+#tips-dialog { width: min(620px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); text-align: left; }
+#tips-dialog h2 { text-align: center; }
+.tips h3 { margin: 1.1rem 0 0.3rem; font-size: 1rem; color: var(--accent); }
+.tips p, .tips li { line-height: 1.5; margin: 0.3rem 0; }
+.tips-intro { color: var(--muted); }
+.mini { display: grid; grid-template-columns: repeat(10, 18px); gap: 2px; margin: 0.5rem 0; justify-content: center; }
+.mini i { width: 18px; height: 18px; border-radius: 3px; background: var(--water); position: relative; overflow: hidden; }
+.mini i.on { background: var(--accent); }
+.mini i::after { content: ""; position: absolute; inset: 0; background: #f5b83d; opacity: var(--h, 0); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .fx { display: none; }

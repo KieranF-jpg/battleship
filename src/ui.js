@@ -5,9 +5,12 @@ import { DAILY_DIFFICULTY, dailyNumber, dailySeed, shareText, todayKey } from '.
 import { ACHIEVEMENTS, emptyStats, loadStats, recordGame, saveStats, winRate } from './stats.js';
 import * as sound from './sound.js';
 import { THEMES, loadTheme, saveTheme } from './theme.js';
+import * as pirate from './pirate.js';
+import { adviceFor, placementDensity } from './tips.js';
 
 const AI_DELAY_MS = 650;
 const END_DELAY_MS = 900;
+const PIRATE_END_DELAY_MS = 3200;
 const REPLAY_STEP_MS = 400;
 const SAVE_KEY = 'battleship.current.v1';
 const COLS = 'ABCDEFGHIJ';
@@ -65,6 +68,12 @@ const els = {
   statsReset: $('stats-reset-btn'),
   soundBtn: $('sound-btn'),
   themeBtn: $('theme-btn'),
+  tipsBtn: $('tips-btn'),
+  tipsDialog: $('tips-dialog'),
+  tipsClose: $('tips-close-btn'),
+  tipsParity: $('tips-parity'),
+  tipsDensity: $('tips-density'),
+  parrot: $('parrot'),
   toasts: $('toasts'),
 };
 
@@ -172,7 +181,8 @@ function onEnemyBoardClick(r, c) {
   sound.play(outcome.result, 0.12);
   log(describe(outcome, 'player'), logClass(outcome, 'player'));
   render();
-  impact(els.enemyBoard, outcome);
+  strike(els.playerBoard, els.enemyBoard, outcome);
+  parrotSays(`player-${outcome.result}`, outcome.result !== 'miss');
   if (game.phase === 'over') return endGame();
   const said = outcome.result === 'miss' ? theme.playerMiss : outcome.result === 'hit' ? theme.playerHit : theme.playerSunk(shipName(outcome.ship.name));
   setStatus(`${said} ${theme.aiming}`);
@@ -186,7 +196,8 @@ function aiTurn() {
   sound.play(outcome.result, 0.12);
   log(describe(outcome, 'ai'), logClass(outcome, 'ai'));
   render();
-  impact(els.playerBoard, outcome);
+  strike(els.enemyBoard, els.playerBoard, outcome);
+  parrotSays(`ai-${outcome.result}`, outcome.result !== 'miss');
   if (game.phase === 'over') return endGame();
   const prefix = outcome.result === 'miss' ? theme.aiMiss : outcome.result === 'hit' ? theme.aiHit : theme.aiSunk(shipName(outcome.ship.name));
   setStatus(`${prefix} ${theme.yourTurn}`);
@@ -232,11 +243,14 @@ function endGame() {
     const a = ACHIEVEMENTS.find((x) => x.id === id);
     extra.push(`Achievement unlocked: ${a.name} — ${a.desc}`);
   }
+  extra.push(`${theme.adviceLabel}: ${adviceFor(summary)}`);
   els.resultExtra.replaceChildren(...extra.map((t) => Object.assign(document.createElement('li'), { textContent: t })));
   els.share.hidden = match.mode !== 'daily';
   log(won ? theme.wonLog : theme.lostLog, 'important');
   sound.play(won ? 'win' : 'lose', 0.5);
   if (won) celebrate();
+  const finale = theme.id === 'pirate';
+  if (finale) pirateFinale(won);
 
   result.unlocked.forEach((id, i) => {
     const a = ACHIEVEMENTS.find((x) => x.id === id);
@@ -248,7 +262,7 @@ function endGame() {
   endTimer = setTimeout(() => {
     endTimer = null;
     if (!els.dialog.open) els.dialog.showModal();
-  }, reducedMotion.matches ? 0 : END_DELAY_MS);
+  }, reducedMotion.matches ? 0 : finale ? PIRATE_END_DELAY_MS : END_DELAY_MS);
 }
 
 function abandon() {
@@ -518,6 +532,42 @@ function showImpact(board, outcome) {
   if (outcome.result !== 'miss') shake(board.closest('.board-wrap'), outcome.result === 'sunk' ? 9 : 4);
 }
 
+const pirateFx = () => theme.id === 'pirate' && !reducedMotion.matches;
+
+// In pirate mode a cannonball flies to the target before the impact effects play.
+function strike(from, board, outcome) {
+  if (!pirateFx()) return impact(board, outcome);
+  try {
+    const target = cellEl(board, outcome.row, outcome.col);
+    target?.classList.add('pending');
+    pirate.cannonball(from, target).then(() => {
+      target?.classList.remove('pending');
+      impact(board, outcome);
+      try { pirate.boom(target, outcome.result); } catch { /* decoration */ }
+    });
+  } catch {
+    impact(board, outcome);
+  }
+}
+
+function parrotSays(event, loud = false) {
+  if (theme.id !== 'pirate') return;
+  try {
+    pirate.squawk(els.parrot, event);
+    if (loud) sound.play('squawk', 0.35);
+  } catch { /* decoration */ }
+}
+
+function pirateFinale(won) {
+  parrotSays(won ? 'win' : 'lose', true);
+  sound.say(won ? 'Arrr! Victory be ours!' : "Arrr. To Davy Jones' locker with us.");
+  if (reducedMotion.matches) return;
+  try {
+    if (won) pirate.swingingPirate();
+    else pirate.kraken();
+  } catch { /* decoration */ }
+}
+
 function shake(el, px) {
   if (reducedMotion.matches || !el?.animate) return;
   const frames = [0, -1, 1, -0.7, 0.7, -0.3, 0].map((f, i) => ({ transform: `translate(${f * px}px, ${(i % 2 ? 0.5 : -0.5) * f * px}px)` }));
@@ -653,6 +703,20 @@ function retellBattle() {
     if (replayState) setReplayStep(replayState.step);
     else setStatus(game.winner === 'player' ? theme.victory : theme.defeat);
   } else setStatus(game.turn === 'player' ? theme.yourTurn : theme.aiming);
+}
+
+function renderTips() {
+  if (els.tipsParity.childElementCount) return;
+  const density = placementDensity();
+  const max = Math.max(...density.flat());
+  for (let r = 0; r < BOARD_SIZE; r++) {
+    for (let c = 0; c < BOARD_SIZE; c++) {
+      els.tipsParity.appendChild(Object.assign(document.createElement('i'), { className: (r + c) % 2 ? '' : 'on' }));
+      const heat = document.createElement('i');
+      heat.style.setProperty('--h', (density[r][c] / max).toFixed(2));
+      els.tipsDensity.appendChild(heat);
+    }
+  }
 }
 
 function applyTheme() {
@@ -840,6 +904,11 @@ els.statsBtn.addEventListener('click', () => {
   els.statsDialog.showModal();
 });
 els.statsClose.addEventListener('click', () => els.statsDialog.close());
+els.tipsBtn.addEventListener('click', () => {
+  renderTips();
+  els.tipsDialog.showModal();
+});
+els.tipsClose.addEventListener('click', () => els.tipsDialog.close());
 els.statsReset.addEventListener('click', () => {
   if (!window.confirm('Reset all stats, achievements and daily results? This cannot be undone.')) return;
   stats = emptyStats();
