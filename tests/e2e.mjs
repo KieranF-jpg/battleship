@@ -251,6 +251,60 @@ await page.click('#new-game-btn');
 check((await page.locator('.parrot-bubble').textContent()) === '', 'a new battle clears the parrot\'s last remark');
 await page.click('#theme-btn');
 
+// Power-ups mode: sonar, broadside and decoys.
+const enemyShots = () => page.locator('#enemy-board .cell.hit, #enemy-board .cell.miss, #enemy-board .cell.decoy').count();
+const playerTurn = () => page.waitForFunction(() => !document.querySelector('#enemy-board').classList.contains('waiting'));
+await page.click('#random-btn');
+await page.selectOption('#mode', 'powerups');
+await page.click('#start-btn');
+check(await page.locator('#powerups').isVisible(), 'power-ups bar shows in a power-ups battle');
+check(await page.locator('#player-board .cell.decoy-buoy').count() === 1, 'your decoy is hidden in your waters');
+await page.click('#pw-sonar');
+await cell('enemy', 4, 4).hover();
+check(await page.locator('#enemy-board .cell.aim').count() === 9, 'sonar aims at a 3x3 area');
+await cell('enemy', 4, 4).click();
+check(await page.locator('#enemy-board .cell.sonar').count() === 9 &&
+  (await page.locator('#log').textContent()).includes('pinged sonar at E5'), 'sonar marks the area and logs the contacts');
+check(await enemyShots() === 0, 'sonar does not fire a shot');
+await playerTurn();
+check(await page.locator('#pw-sonar').isDisabled(), 'sonar is used up after one ping');
+await page.click('#pw-broadside');
+const arrow = await page.locator('#pw-broadside').textContent();
+await page.click('#pw-broadside');
+check((await page.locator('#pw-broadside').textContent()) !== arrow, 'tapping broadside again turns it');
+await cell('enemy', 0, 7).hover();
+check(await page.locator('#enemy-board .cell.aim').count() === 3, 'broadside aims at 3 squares');
+await cell('enemy', 0, 7).click();
+check(await enemyShots() === 3 && (await page.locator('#log').textContent()).includes('fired a broadside at'), 'broadside fires 3 shots in one turn');
+await playerTurn();
+check(await page.locator('#pw-broadside').isDisabled() && await page.locator('#pw-shot').getAttribute('aria-pressed') === 'true',
+  'broadside is used up and the cannon is selected again');
+await page.reload();
+await page.locator('#powerups').waitFor();
+check(await page.locator('#enemy-board .cell.sonar').count() === 9 && await enemyShots() === 3 &&
+  (await page.locator('#pw-broadside').textContent()).includes('×0'), 'a power-ups battle resumes after reload');
+await page.click('#new-game-btn');
+await page.selectOption('#mode', 'classic');
+
+// Pirate campaign.
+await page.click('#campaign-btn');
+check(await page.locator('#campaign-list li').count() === 5 && await page.locator('#campaign-list button').first().isEnabled() &&
+  await page.locator('#campaign-list button').nth(1).isDisabled(), 'campaign starts with only the first captain unlocked');
+await page.locator('#campaign-list button').first().click();
+check(await page.locator('#captain').isVisible() && (await page.locator('#captain-name').textContent()).includes('Barnacle Bill') &&
+  (await page.locator('#log').textContent()).includes('Barnacle Bill challenges you'), 'campaign battle starts with the captain\'s taunt');
+check(await page.locator('#powerups').isHidden(), 'the first captain fights without power-ups');
+await page.click('#new-game-btn');
+check(await page.locator('#captain').isHidden(), 'the captain leaves when the battle is abandoned');
+await page.evaluate(() => localStorage.setItem('battleship.campaign.v1', JSON.stringify({ beaten: { barnacle: { wins: 1, bestShots: 61 } } })));
+await page.reload();
+await page.click('#campaign-btn');
+check((await page.locator('#campaign-list li').first().textContent()).includes('best win 61 shots') &&
+  await page.locator('#campaign-list button').nth(1).isEnabled() && await page.locator('#campaign-list button').nth(2).isDisabled(),
+  'beating a captain unlocks the next one');
+await page.screenshot({ path: 'test-results/campaign.png' });
+await page.click('#campaign-close-btn');
+
 // Broken audio (old browsers, blocked AudioContext) must not stall the battle.
 const noAudio = await context.newPage();
 await noAudio.addInitScript(() => {

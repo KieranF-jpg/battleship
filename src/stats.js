@@ -15,6 +15,8 @@ export const ACHIEVEMENTS = Object.freeze([
   { id: 'veteran', name: 'Veteran', desc: 'Finish 10 battles.' },
   { id: 'daily-duty', name: 'Daily Duty', desc: 'Win a daily challenge.' },
   { id: 'regular', name: 'Regular', desc: 'Win the daily challenge 3 days in a row.' },
+  { id: 'power-play', name: 'Power Play', desc: 'Win a battle with power-ups on.' },
+  { id: 'scourge', name: 'Scourge of the Seas', desc: 'Defeat every captain in the campaign.' },
 ]);
 
 const DIFFICULTY_KEYS = ['easy', 'medium', 'hard'];
@@ -116,6 +118,8 @@ export function recordGame(prev, summary, now = new Date()) {
     veteran: s.played >= 10,
     'daily-duty': won && mode === 'daily',
     regular: s.daily.streak >= 3,
+    'power-play': won && Boolean(summary.powerups),
+    scourge: Boolean(summary.campaignComplete),
   };
   const unlocked = [];
   for (const { id } of ACHIEVEMENTS) {

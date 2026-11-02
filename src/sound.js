@@ -118,6 +118,9 @@ const PIRATE = {
   win(t) {
     [587.33, 739.99, 880, 739.99, 880, 1174.66].forEach((f, i) => tone(t + i * 0.12, { type: 'square', from: f, duration: 0.18, peak: 0.12 }));
   },
+  sonar(t) {
+    [0, 0.35, 0.7].forEach((d, i) => tone(t + d, { from: 1320, to: 1250, duration: 0.5, peak: 0.18 / (i + 1) }));
+  },
   squawk(t) {
     tone(t, { type: 'sawtooth', from: 1500, to: 2400, duration: 0.07, peak: 0.12 });
     tone(t + 0.08, { type: 'sawtooth', from: 2200, to: 1300, duration: 0.11, peak: 0.12 });

@@ -107,7 +107,7 @@ export class AI {
             let valid = true;
             for (const [cr, cc] of cells) {
               const s = this.stateAt(cr, cc);
-              if (!this.inBounds(cr, cc) || s === 'miss' || s === 'sunk') { valid = false; break; }
+              if (!this.inBounds(cr, cc) || s === 'miss' || s === 'sunk' || s === 'clear') { valid = false; break; }
               if (s === 'hit') covered++;
             }
             if (!valid || (targeting && covered === 0)) continue;
@@ -146,9 +146,67 @@ export class AI {
     return this.pick(bestCells).split(',').map(Number);
   }
 
+  // An empty sonar ping clears the whole 3x3 area.
+  recordSonar(row, col, count) {
+    if (count > 0) return;
+    for (let r = row - 1; r <= row + 1; r++) {
+      for (let c = col - 1; c <= col + 1; c++) {
+        if (this.inBounds(r, c) && !this.state.has(key(r, c))) this.state.set(key(r, c), 'clear');
+      }
+    }
+  }
+
+  // With power-ups on: a broadside to finish a line of hits, or sonar over the likeliest area
+  // once the hunt has dragged on. Deterministic, so replays stay identical.
+  choosePower(charges) {
+    const hits = this.unresolvedHits();
+    if (charges.broadside && hits.length >= 2) {
+      const shot = this.broadsideTarget(hits);
+      if (shot) return { type: 'broadside', ...shot };
+    }
+    if (charges.sonar && hits.length === 0 && this.state.size >= 10) {
+      const scores = this.probabilityScores();
+      let best = 0;
+      let at = null;
+      for (let r = 1; r < this.size - 1; r++) {
+        for (let c = 1; c < this.size - 1; c++) {
+          let sum = 0;
+          for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) sum += scores.get(key(r + dr, c + dc)) || 0;
+          if (sum > best) { best = sum; at = [r, c]; }
+        }
+      }
+      if (at) return { type: 'sonar', row: at[0], col: at[1] };
+    }
+    return null;
+  }
+
+  broadsideTarget(hits) {
+    const hitSet = new Set(hits.map(([r, c]) => key(r, c)));
+    const open = (r, c) => this.inBounds(r, c) && !this.state.has(key(r, c));
+    let best = null;
+    for (const [r, c] of hits) {
+      for (const [dr, dc] of [[0, 1], [1, 0]]) {
+        if (!hitSet.has(key(r + dr, c + dc))) continue;
+        let er = r, ec = c;
+        while (hitSet.has(key(er + dr, ec + dc))) { er += dr; ec += dc; }
+        const orientation = dr ? VERTICAL : HORIZONTAL;
+        const ends = [
+          { start: [er + dr, ec + dc], next: [er + dr, ec + dc] },
+          { start: [r - 3 * dr, c - 3 * dc], next: [r - dr, c - dc] },
+        ];
+        for (const { start, next } of ends) {
+          if (!open(...next)) continue;
+          const count = shipCells(start[0], start[1], 3, orientation).filter(([sr, sc]) => open(sr, sc)).length;
+          if (count >= 2 && (!best || count > best.count)) best = { row: start[0], col: start[1], orientation, count };
+        }
+      }
+    }
+    return best && { row: best.row, col: best.col, orientation: best.orientation };
+  }
+
   recordResult(outcome) {
     const { row, col, result } = outcome;
-    this.state.set(key(row, col), result === 'miss' ? 'miss' : 'hit');
+    this.state.set(key(row, col), result === 'hit' || result === 'sunk' ? 'hit' : 'miss');
     if (result === 'sunk') {
       for (const [r, c] of outcome.ship.cells) this.state.set(key(r, c), 'sunk');
       const idx = this.remaining.indexOf(outcome.ship.size);
