@@ -264,7 +264,8 @@ await cell('enemy', 4, 4).hover();
 check(await page.locator('#enemy-board .cell.aim').count() === 9, 'sonar aims at a 3x3 area');
 await cell('enemy', 4, 4).click();
 check(await page.locator('#enemy-board .cell.sonar').count() === 9 &&
-  (await page.locator('#log').textContent()).includes('pinged sonar at E5'), 'sonar marks the area and logs the contacts');
+  (await page.locator('#log').textContent()).includes('pinged sonar at E5') &&
+  await cell('enemy', 4, 4).locator('.sonar-count').count() === 0, 'sonar marks the area and logs the contacts');
 check(await enemyShots() === 0, 'sonar does not fire a shot');
 await playerTurn();
 check(await page.locator('#pw-sonar').isDisabled(), 'sonar is used up after one ping');
