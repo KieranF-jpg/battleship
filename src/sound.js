@@ -129,7 +129,10 @@ export function setVariant(name) {
 }
 
 export function play(name, delay = 0) {
-  const ac = audio();
-  if (!ac || !variant[name]) return;
-  variant[name](ac.currentTime + delay);
+  // Sound is decoration: an audio failure must never interrupt the game.
+  try {
+    const ac = audio();
+    if (!ac || !variant[name]) return;
+    variant[name](ac.currentTime + delay);
+  } catch { /* audio unavailable */ }
 }

@@ -182,15 +182,34 @@ await page.click('#random-btn');
 await page.click('#start-btn');
 await cell('enemy', 0, 0).click();
 check((await page.locator('#log').textContent()).includes('Ye fired at A1'), 'pirate theme flavours the battle log');
-await page.click('#new-game-btn');
+await page.waitForFunction(() => document.querySelectorAll('#player-board .cell.hit, #player-board .cell.miss').length === 1);
 await page.click('#theme-btn');
 check(await page.evaluate(() => document.documentElement.dataset.theme) === 'navy' &&
   (await page.locator('h1').textContent()) === 'Battleship', 'navy theme switches back');
+const retold = await page.locator('#log').textContent();
+check(retold.includes('You fired at A1') && !retold.includes('Ye fired') &&
+  (await page.locator('#status-text').textContent()).includes('Your turn'), 'switching theme mid-battle retells the log and status');
+await page.click('#new-game-btn');
 
 // Mute is remembered.
 await page.click('#sound-btn');
 await page.reload();
 check((await page.locator('#sound-btn').textContent()) === 'Sound off', 'mute setting persists across reloads');
+
+// Broken audio (old browsers, blocked AudioContext) must not stall the battle.
+const noAudio = await context.newPage();
+await noAudio.addInitScript(() => {
+  localStorage.clear();
+  window.AudioContext = function () { throw new Error('audio blocked'); };
+});
+await noAudio.goto(url);
+await noAudio.click('#random-btn');
+await noAudio.click('#start-btn');
+await noAudio.locator('#enemy-board .cell[data-row="0"][data-col="0"]').click();
+await noAudio.waitForFunction(() => document.querySelectorAll('#player-board .cell.hit, #player-board .cell.miss').length === 1, null, { timeout: 3000 }).catch(() => {});
+check(await noAudio.locator('#player-board .cell.hit, #player-board .cell.miss').count() === 1 &&
+  await noAudio.locator('#enemy-board .cell[data-row="0"][data-col="1"]').isEnabled(), 'battle keeps going when audio fails');
+await noAudio.close();
 
 check(errors.length === 0, `no console errors ${errors.join(' | ')}`);
 await browser.close();
