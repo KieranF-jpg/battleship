@@ -252,10 +252,11 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
   box-shadow: 0 6px 20px #000a, inset 0 0 24px #7a52207a;
 }
 [data-theme="pirate"] .board .label { color: #5a3a17; font-family: Georgia, serif; font-weight: 700; }
-[data-theme="pirate"] .cell {
+/* :where keeps this at plain .cell specificity so hit, sunk and preview colours still win. */
+:where([data-theme="pirate"]) .cell {
   background: repeating-linear-gradient(135deg, #ffffff12 0 2px, transparent 2px 7px), var(--water);
 }
-[data-theme="pirate"] .cell:hover:not(:disabled) { background: repeating-linear-gradient(135deg, #ffffff18 0 2px, transparent 2px 7px), var(--water-hover); }
+:where([data-theme="pirate"]) .cell:hover:not(:disabled) { background: repeating-linear-gradient(135deg, #ffffff18 0 2px, transparent 2px 7px), var(--water-hover); }
 /* Wooden hulls with planks, and a sail on every segment behind the bow. */
 [data-theme="pirate"] .cell.ship { background: repeating-linear-gradient(to bottom, transparent 0 30%, #0000002e 30% 34%), var(--hull); }
 [data-theme="pirate"] .cell.ship.v { background: repeating-linear-gradient(to right, transparent 0 30%, #0000002e 30% 34%), var(--hull); }

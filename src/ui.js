@@ -166,6 +166,8 @@ function onEnemyBoardClick(r, c) {
   const outcome = game.playerFire(r, c);
   if (!outcome) return;
   saveCurrent();
+  // Hand the turn to the AI before any rendering or effects, so a failure there can't stall the game.
+  if (game.phase !== 'over') aiTimer = setTimeout(aiTurn, AI_DELAY_MS);
   sound.play('fire');
   sound.play(outcome.result, 0.12);
   log(describe(outcome, 'player'), logClass(outcome, 'player'));
@@ -174,7 +176,6 @@ function onEnemyBoardClick(r, c) {
   if (game.phase === 'over') return endGame();
   const said = outcome.result === 'miss' ? theme.playerMiss : outcome.result === 'hit' ? theme.playerHit : theme.playerSunk(shipName(outcome.ship.name));
   setStatus(`${said} ${theme.aiming}`);
-  aiTimer = setTimeout(aiTurn, AI_DELAY_MS);
 }
 
 function aiTurn() {
@@ -495,6 +496,12 @@ function renderFleet(list, ships, own) {
 // ---------- effects ----------
 
 function impact(board, outcome) {
+  try {
+    showImpact(board, outcome);
+  } catch { /* effects are decoration only */ }
+}
+
+function showImpact(board, outcome) {
   const cells = outcome.result === 'sunk' ? outcome.ship.cells : [[outcome.row, outcome.col]];
   cells.forEach(([r, c], i) => {
     const el = cellEl(board, r, c);
@@ -633,6 +640,19 @@ function renderSoundButton() {
   const on = !sound.isMuted();
   els.soundBtn.textContent = on ? 'Sound on' : 'Sound off';
   els.soundBtn.setAttribute('aria-pressed', String(on));
+}
+
+// Rewrites the status line and battle log in the current theme's wording.
+function retellBattle() {
+  if (replayState) return setReplayStep(replayState.step);
+  els.log.replaceChildren();
+  if (match) log(match.mode === 'daily' ? theme.dailyLog(dailyNumber(match.date)) : theme.startLog(match.difficulty), 'important');
+  for (const m of game.moves) log(describe(m, m.who), logClass(m, m.who));
+  if (game.phase === 'placement') setStatus(theme.setup);
+  else if (game.phase === 'over') {
+    log(game.winner === 'player' ? theme.wonLog : theme.lostLog, 'important');
+    setStatus(game.winner === 'player' ? theme.victory : theme.defeat);
+  } else setStatus(game.turn === 'player' ? theme.yourTurn : theme.aiming);
 }
 
 function applyTheme() {
@@ -831,7 +851,7 @@ els.themeBtn.addEventListener('click', () => {
   theme = theme.id === 'pirate' ? THEMES.navy : THEMES.pirate;
   saveTheme(storage, theme.id);
   applyTheme();
-  if (game.phase === 'placement') setStatus(theme.setup);
+  retellBattle();
   render();
   sound.play('place');
 });

@@ -95,7 +95,8 @@ export const THEMES = { navy, pirate };
 
 export function loadTheme(storage) {
   try {
-    return THEMES[storage?.getItem(THEME_KEY)] || navy;
+    const id = storage?.getItem(THEME_KEY);
+    return Object.prototype.hasOwnProperty.call(THEMES, id) ? THEMES[id] : navy;
   } catch {
     return navy;
   }

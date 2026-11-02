@@ -66,7 +66,7 @@ export const winRate = (s) => (s.played ? Math.round((s.wins / s.played) * 100) 
 // summary: { won, difficulty, shots, hits, shipsLost, mode, date, sequence }
 // Returns a new stats object, the ids of newly unlocked achievements and which records were broken.
 export function recordGame(prev, summary, now = new Date()) {
-  const s = structuredClone(prev);
+  const s = JSON.parse(JSON.stringify(prev));
   const { won, difficulty, shots, hits, shipsLost, mode, date } = summary;
   const accuracy = shots ? hits / shots : 0;
   const records = [];

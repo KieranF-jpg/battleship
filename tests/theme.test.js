@@ -31,6 +31,10 @@ test('theme choice round-trips through storage and falls back to navy', () => {
   s.setItem(THEME_KEY, 'bogus');
   assert.equal(loadTheme(s).id, 'navy');
   assert.equal(loadTheme(null).id, 'navy');
+  for (const inherited of ['constructor', 'toString', '__proto__']) {
+    s.setItem(THEME_KEY, inherited);
+    assert.equal(loadTheme(s).id, 'navy', inherited);
+  }
   assert.equal(loadTheme({ getItem() { throw new Error('denied'); } }).id, 'navy');
 });
 
