@@ -26,6 +26,12 @@ export function squawk(parrot, event, rnd = Math.random) {
   parrot.classList.add('talk');
 }
 
+export function hush(parrot) {
+  if (!parrot) return;
+  parrot.classList.remove('talk');
+  parrot.querySelector('.parrot-bubble').textContent = '';
+}
+
 const centre = (el) => {
   const b = el.getBoundingClientRect();
   return [b.left + b.width / 2, b.top + b.height / 2];

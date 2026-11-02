@@ -215,6 +215,8 @@ check(await page.locator('#tips-dialog').evaluate((d) => d.open) &&
   (await page.locator('#tips-dialog').textContent()).includes('checkerboard'), 'tips dialog opens with the guide');
 check(await page.locator('#tips-parity i').count() === 100 && await page.locator('#tips-density i').count() === 100 &&
   await page.locator('#tips-parity i.on').count() === 50, 'tips draw the checkerboard and heatmap');
+check(await page.locator('#tips-dialog').evaluate((d) => d.scrollTop === 0 && document.activeElement.id === 'tips-title'),
+  'tips open at the top with focus on the title');
 await page.click('#tips-close-btn');
 check(!(await page.locator('#tips-dialog').evaluate((d) => d.open)), 'tips dialog closes');
 
@@ -223,6 +225,11 @@ await page.click('#theme-btn');
 check((await page.locator('#tips-title').textContent()).includes("Pirate's Code"), 'pirate theme renames the tips');
 await page.click('#random-btn');
 await page.click('#start-btn');
+await cell('enemy', 9, 9).click();
+await page.click('#theme-btn');
+await page.waitForTimeout(700);
+check(await page.locator('.cannonball, .boom').count() === 0, 'switching to navy mid-shot stops the pirate effects');
+await page.click('#theme-btn');
 let finale = false;
 page.locator('.pirate-swing, .kraken').first().waitFor({ state: 'attached', timeout: 120000 }).then(() => { finale = true; }, () => {});
 for (let r = 0; r < 10; r++) {
@@ -240,6 +247,8 @@ await page.waitForFunction(() => document.getElementById('game-over').open, null
 check((await page.locator('#result-extra').textContent()).includes("Cap'n's advice:"), 'pirate result gives the captain\'s advice');
 await page.screenshot({ path: 'test-results/pirate-result.png' });
 await page.click('#close-result-btn');
+await page.click('#new-game-btn');
+check((await page.locator('.parrot-bubble').textContent()) === '', 'a new battle clears the parrot\'s last remark');
 await page.click('#theme-btn');
 
 // Broken audio (old browsers, blocked AudioContext) must not stall the battle.

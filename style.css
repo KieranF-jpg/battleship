@@ -349,6 +349,7 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 
 #tips-dialog { width: min(620px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); text-align: left; }
 #tips-dialog h2 { text-align: center; }
+#tips-title:focus { outline: none; }
 .tips h3 { margin: 1.1rem 0 0.3rem; font-size: 1rem; color: var(--accent); }
 .tips p, .tips li { line-height: 1.5; margin: 0.3rem 0; }
 .tips-intro { color: var(--muted); }

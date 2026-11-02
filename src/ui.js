@@ -145,6 +145,7 @@ function newGame({ keepSave = false } = {}) {
   selectedShip = FLEET[0].name;
   hoverCell = null;
   els.log.innerHTML = '';
+  pirate.hush(els.parrot);
   els.setup.hidden = false;
   setStatus(theme.setup);
   render();
@@ -543,7 +544,7 @@ function strike(from, board, outcome) {
     pirate.cannonball(from, target).then(() => {
       target?.classList.remove('pending');
       impact(board, outcome);
-      try { pirate.boom(target, outcome.result); } catch { /* decoration */ }
+      if (pirateFx()) try { pirate.boom(target, outcome.result); } catch { /* decoration */ }
     });
   } catch {
     impact(board, outcome);
@@ -907,6 +908,7 @@ els.statsClose.addEventListener('click', () => els.statsDialog.close());
 els.tipsBtn.addEventListener('click', () => {
   renderTips();
   els.tipsDialog.showModal();
+  els.tipsDialog.scrollTop = 0;
 });
 els.tipsClose.addEventListener('click', () => els.tipsDialog.close());
 els.statsReset.addEventListener('click', () => {
@@ -918,6 +920,7 @@ els.statsReset.addEventListener('click', () => {
 });
 els.themeBtn.addEventListener('click', () => {
   theme = theme.id === 'pirate' ? THEMES.navy : THEMES.pirate;
+  document.querySelectorAll('.cannonball, .boom, .pirate-swing, .kraken').forEach((el) => el.remove());
   saveTheme(storage, theme.id);
   applyTheme();
   retellBattle();
