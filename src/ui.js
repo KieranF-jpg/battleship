@@ -145,6 +145,7 @@ function newGame({ keepSave = false } = {}) {
   selectedShip = FLEET[0].name;
   hoverCell = null;
   els.log.innerHTML = '';
+  pirate.hush(els.parrot);
   els.setup.hidden = false;
   setStatus(theme.setup);
   render();
