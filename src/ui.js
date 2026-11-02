@@ -544,6 +544,18 @@ function markSonar(el, mark) {
   }
   if (mark?.centre) el.dataset.sonar = mark.count;
   else delete el.dataset.sonar;
+  // Squares that already draw a marker or hull get the count as a corner badge in its own element.
+  let badge = el.querySelector('.sonar-count');
+  if (mark?.centre && el.matches('.miss, .hit, .decoy, .ship, .decoy-buoy')) {
+    if (!badge) {
+      badge = Object.assign(document.createElement('span'), { className: 'sonar-count' });
+      badge.setAttribute('aria-hidden', 'true');
+      el.appendChild(badge);
+    }
+    badge.textContent = mark.count;
+  } else {
+    badge?.remove();
+  }
 }
 
 function aimCells() {
