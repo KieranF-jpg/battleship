@@ -39,15 +39,24 @@
           <option value="medium">Medium</option>
           <option value="hard" selected>Hard</option>
         </select>
+        <label for="mode">Mode</label>
+        <select id="mode">
+          <option value="classic">Classic</option>
+          <option value="powerups">Power-ups</option>
+        </select>
         <button id="start-btn" type="button" class="primary" data-text="startBtn" disabled>Start battle</button>
         <span class="or">or</span>
         <button id="daily-btn" type="button" class="daily">Daily challenge</button>
+        <span class="or">or</span>
+        <button id="campaign-btn" type="button" class="campaign">🏴‍☠️ Pirate campaign</button>
       </div>
+      <p class="hint small">Power-ups gives both sides one sonar ping, one 3-shot broadside and a hidden decoy. The campaign pits you against 5 pirate captains in a row.</p>
       <p class="hint small" id="daily-hint">The daily challenge gives everyone the same enemy fleet and Hard AI. One attempt per day; share your result.</p>
     </section>
 
     <section id="status" class="panel status" aria-live="polite">
       <p id="status-text">Place your ships to begin.</p>
+      <div id="captain" class="captain" hidden><span id="captain-face" class="captain-face" aria-hidden="true"></span><p><strong id="captain-name"></strong> <span id="captain-line"></span></p></div>
       <div id="parrot" class="parrot" aria-hidden="true"><span class="parrot-bubble"></span><span class="parrot-bird">🦜</span></div>
       <button id="new-game-btn" type="button" hidden>New game</button>
     </section>
@@ -73,6 +82,12 @@
       </section>
       <section class="board-wrap" aria-labelledby="enemy-title">
         <h2 id="enemy-title" data-text="enemyTitle">Enemy waters</h2>
+        <div id="powerups" class="powerups" role="group" aria-label="Weapons" hidden>
+          <button id="pw-shot" type="button" aria-pressed="true">Cannon</button>
+          <button id="pw-sonar" type="button" aria-pressed="false">Sonar <span class="count"></span></button>
+          <button id="pw-broadside" type="button" aria-pressed="false">Broadside <span class="count"></span></button>
+          <p id="pw-hint" class="hint small"></p>
+        </div>
         <div id="enemy-board" class="board enemy" role="grid" aria-label="Enemy board"></div>
         <ul id="enemy-fleet" class="fleet" aria-label="Enemy ships"></ul>
       </section>
@@ -129,11 +144,22 @@
         <li><strong>Medium</strong> hunts on a checkerboard and follows up hits.</li>
         <li><strong>Hard</strong> works out the odds for every square, like the heatmap above, after every shot.</li>
       </ul>
-      <h3>8. Learn from every battle</h3>
+      <h3>8. Use power-ups wisely</h3>
+      <p>Save <strong>sonar</strong> for big patches of open water: a ping of 0 clears 9 squares at once. Remember a contact might be the decoy. Fire the <strong>broadside</strong> along a line of 2 hits to finish a ship in one turn.</p>
+      <h3>9. Learn from every battle</h3>
       <p>After a game, choose <strong>Watch replay</strong> and turn on <strong>AI radar</strong> to see where the AI thought your ships were. Stats track your best accuracy and fewest shots to win.</p>
     </div>
     <div class="dialog-actions">
       <button id="tips-close-btn" type="button" class="primary">Got it</button>
+    </div>
+  </dialog>
+
+  <dialog id="campaign-dialog" aria-labelledby="campaign-title">
+    <h2 id="campaign-title">🏴‍☠️ Pirate campaign</h2>
+    <p class="hint">Beat each captain to unlock the next. Ships you haven't placed are positioned at random.</p>
+    <ol id="campaign-list" class="captains"></ol>
+    <div class="dialog-actions">
+      <button id="campaign-close-btn" type="button">Close</button>
     </div>
   </dialog>
 

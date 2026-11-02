@@ -13,8 +13,8 @@ export function fleetOf(board) {
   return board.ships.map((s) => [s.name, s.cells[0][0], s.cells[0][1], s.orientation]);
 }
 
-export function createMatch({ seed, difficulty, fleet }) {
-  const game = new Game({ rng: mulberry32(seed), ai: new AI({ difficulty, rng: mulberry32(aiSeed(seed)) }) });
+export function createMatch({ seed, difficulty, fleet, powerups = false }) {
+  const game = new Game({ rng: mulberry32(seed), ai: new AI({ difficulty, rng: mulberry32(aiSeed(seed)) }), powerups });
   for (const [name, row, col, orientation] of fleet) {
     const spec = FLEET.find((s) => s.name === name);
     if (!spec) throw new Error(`Unknown ship: ${name}`);
@@ -24,7 +24,7 @@ export function createMatch({ seed, difficulty, fleet }) {
   return game;
 }
 
-export function toRecord(game, { seed, difficulty, mode = 'classic', date = null, fleet }) {
+export function toRecord(game, { seed, difficulty, mode = 'classic', date = null, fleet, captain = null }) {
   return {
     v: RECORD_VERSION,
     seed,
@@ -32,19 +32,26 @@ export function toRecord(game, { seed, difficulty, mode = 'classic', date = null
     mode,
     date,
     fleet,
-    shots: game.moves.filter((m) => m.who === 'player').map((m) => [m.row, m.col]),
+    powerups: Boolean(game.powerups),
+    captain,
+    shots: game.actions.map((a) => [...a]),
   };
 }
 
-// Rebuilds a match from a record, applying at most `maxMoves` shots (player and AI combined).
+// Rebuilds a match from a record, applying at most `maxMoves` moves (player and AI combined).
+// Each entry in `shots` is [row, col], [row, col, 'sonar'] or [row, col, 'broadside', orientation].
 export function replay(record, maxMoves = Infinity) {
   if (!record || record.v !== RECORD_VERSION) throw new Error('Unsupported record');
   const game = createMatch(record);
-  for (const [row, col] of record.shots) {
+  for (const [row, col, type, orientation] of record.shots) {
     if (game.moves.length >= maxMoves || game.phase !== 'playing') break;
-    if (!game.playerFire(row, col)) throw new Error(`Invalid shot in record: ${row},${col}`);
+    const left = maxMoves - game.moves.length;
+    const ok = type === 'sonar' ? game.playerSonar(row, col)
+      : type === 'broadside' ? game.playerBroadside(row, col, orientation, left)
+      : game.playerFire(row, col);
+    if (!ok) throw new Error(`Invalid shot in record: ${row},${col}`);
     if (game.moves.length >= maxMoves) break;
-    if (game.phase === 'playing') game.aiFire();
+    if (game.phase === 'playing') game.aiFire(maxMoves - game.moves.length);
   }
   return game;
 }

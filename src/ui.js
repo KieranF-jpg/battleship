@@ -1,4 +1,4 @@
-import { BOARD_SIZE, FLEET, HORIZONTAL, VERTICAL, Game, key, shipCells, isSunk } from './game.js';
+import { BOARD_SIZE, BROADSIDE_LENGTH, FLEET, HORIZONTAL, VERTICAL, Game, key, shipCells, isSunk } from './game.js';
 import { createMatch, fleetOf, replay, toRecord } from './match.js';
 import { randomSeed } from './rng.js';
 import { DAILY_DIFFICULTY, dailyNumber, dailySeed, shareText, todayKey } from './daily.js';
@@ -7,6 +7,7 @@ import * as sound from './sound.js';
 import { THEMES, loadTheme, saveTheme } from './theme.js';
 import * as pirate from './pirate.js';
 import { adviceFor, placementDensity } from './tips.js';
+import { CAPTAINS, captainById, isUnlocked, loadCampaign, recordCampaign, saveCampaign, taunt } from './campaign.js';
 
 const AI_DELAY_MS = 650;
 const END_DELAY_MS = 900;
@@ -35,6 +36,20 @@ const els = {
   random: $('random-btn'),
   clear: $('clear-btn'),
   difficulty: $('difficulty'),
+  mode: $('mode'),
+  campaignBtn: $('campaign-btn'),
+  campaignDialog: $('campaign-dialog'),
+  campaignList: $('campaign-list'),
+  campaignClose: $('campaign-close-btn'),
+  captain: $('captain'),
+  captainFace: $('captain-face'),
+  captainName: $('captain-name'),
+  captainLine: $('captain-line'),
+  powerups: $('powerups'),
+  pwShot: $('pw-shot'),
+  pwSonar: $('pw-sonar'),
+  pwBroadside: $('pw-broadside'),
+  pwHint: $('pw-hint'),
   start: $('start-btn'),
   daily: $('daily-btn'),
   status: $('status-text'),
@@ -90,6 +105,9 @@ let lastRecord = null;
 let replayState = null;
 let stats = loadStats(storage);
 let theme = loadTheme(storage);
+let campaign = loadCampaign(storage);
+let weapon = 'shot';
+let aimCell = null;
 
 const coord = (r, c) => `${COLS[c]}${r + 1}`;
 const shipName = (name) => theme.ships[name] ?? name;
@@ -121,9 +139,11 @@ function resumeSaved() {
     clearCurrent();
     return false;
   }
-  const { seed, difficulty, mode, date, fleet } = record;
-  match = { seed, difficulty, mode, date, fleet };
+  const { seed, difficulty, mode, date, fleet, powerups = false, captain = null } = record;
+  match = { seed, difficulty, mode, date, fleet, powerups, captain };
   els.difficulty.value = difficulty;
+  if (mode === 'classic') els.mode.value = powerups ? 'powerups' : 'classic';
+  captainSays('start');
   els.setup.hidden = true;
   for (const m of game.moves) log(describe(m, m.who), logClass(m, m.who));
   log(theme.resumedLog, 'important');
@@ -144,64 +164,115 @@ function newGame({ keepSave = false } = {}) {
   if (!keepSave) clearCurrent();
   selectedShip = FLEET[0].name;
   hoverCell = null;
+  weapon = 'shot';
+  aimCell = null;
   els.log.innerHTML = '';
   pirate.hush(els.parrot);
+  els.captain.hidden = true;
   els.setup.hidden = false;
   setStatus(theme.setup);
   render();
 }
 
-function startMatch(mode) {
+function startMatch(mode, captain = null) {
   if (game.phase !== 'placement' || !game.allPlayerShipsPlaced()) return;
   const date = mode === 'daily' ? todayKey() : null;
   if (mode === 'daily' && stats.daily.results[date]) return;
   match = {
     seed: mode === 'daily' ? dailySeed(date) : randomSeed(),
-    difficulty: mode === 'daily' ? DAILY_DIFFICULTY : els.difficulty.value,
+    difficulty: captain ? captain.difficulty : mode === 'daily' ? DAILY_DIFFICULTY : els.difficulty.value,
     mode,
     date,
     fleet: fleetOf(game.player),
+    powerups: captain ? captain.powerups : mode === 'classic' && els.mode.value === 'powerups',
+    captain: captain?.id ?? null,
   };
   game = createMatch(match);
   saveCurrent();
   els.setup.hidden = true;
   setStatus(theme.started);
-  log(mode === 'daily' ? theme.dailyLog(dailyNumber(date)) : theme.startLog(match.difficulty), 'important');
+  log(startLine(), 'important');
+  captainSays('start');
   sound.play('place');
   render();
 }
 
+function startLine() {
+  if (match.mode === 'daily') return theme.dailyLog(dailyNumber(match.date));
+  const cap = captainById(match.captain);
+  if (cap) return `${cap.name} challenges you! ${label(cap.difficulty)} AI${cap.powerups ? ' with power-ups' : ''}.`;
+  return theme.startLog(match.difficulty) + (match.powerups ? ' Power-ups are on.' : '');
+}
+
+const label = (d) => `${d[0].toUpperCase()}${d.slice(1)}`;
+
 function onEnemyBoardClick(r, c) {
   if (replayState || game.phase !== 'playing' || game.turn !== 'player') return;
-  const outcome = game.playerFire(r, c);
+  const outcome = weapon === 'sonar' ? game.playerSonar(r, c)
+    : weapon === 'broadside' ? game.playerBroadside(r, c, orientation)
+    : game.playerFire(r, c);
   if (!outcome) return;
+  weapon = 'shot';
+  aimCell = null;
   saveCurrent();
   // Hand the turn to the AI before any rendering or effects, so a failure there can't stall the game.
   if (game.phase !== 'over') aiTimer = setTimeout(aiTurn, AI_DELAY_MS);
-  sound.play('fire');
-  sound.play(outcome.result, 0.12);
-  log(describe(outcome, 'player'), logClass(outcome, 'player'));
-  render();
-  strike(els.playerBoard, els.enemyBoard, outcome);
-  parrotSays(`player-${outcome.result}`, outcome.result !== 'miss');
-  if (game.phase === 'over') return endGame();
-  const said = outcome.result === 'miss' ? theme.playerMiss : outcome.result === 'hit' ? theme.playerHit : theme.playerSunk(shipName(outcome.ship.name));
-  setStatus(`${said} ${theme.aiming}`);
+  present('player', outcome);
 }
 
 function aiTurn() {
   aiTimer = null;
   const outcome = game.aiFire();
   if (!outcome) return;
-  sound.play('fire');
-  sound.play(outcome.result, 0.12);
-  log(describe(outcome, 'ai'), logClass(outcome, 'ai'));
+  present('ai', outcome);
+}
+
+// Sounds, log, effects and status for one turn: a shot, a sonar ping or a broadside volley.
+function present(who, outcome) {
+  const board = who === 'player' ? els.enemyBoard : els.playerBoard;
+  const from = who === 'player' ? els.playerBoard : els.enemyBoard;
+  const volley = outcome.result === 'broadside';
+  const shots = volley ? outcome.outcomes : outcome.result === 'sonar' ? [] : [outcome];
+  if (outcome.result === 'sonar') {
+    sound.play('sonar');
+    log(describe(outcome, who), who === 'player' ? 'player' : '');
+  } else {
+    sound.play('fire');
+  }
+  shots.forEach((o, i) => {
+    sound.play(o.result === 'decoy' ? 'miss' : o.result, 0.12 + i * 0.18);
+    log(describe(o, who, volley), logClass(o, who));
+  });
   render();
-  strike(els.enemyBoard, els.playerBoard, outcome);
-  parrotSays(`ai-${outcome.result}`, outcome.result !== 'miss');
+  if (outcome.result === 'sonar') ping(board, outcome);
+  shots.forEach((o, i) => {
+    if (i === 0) strike(from, board, o);
+    else setTimeout(() => strike(from, board, o), i * 180);
+  });
+  const top = shots.find((o) => o.result === 'sunk') || shots.find((o) => o.result === 'hit') || shots[shots.length - 1];
+  parrotSays(`${who}-${top ? top.result : 'sonar'}`, top?.result === 'hit' || top?.result === 'sunk');
+  if (top?.result === 'sunk') captainSays(who === 'ai' ? 'sink' : 'sunk');
+  else if (top?.result === 'hit') captainSays(who === 'ai' ? 'hit' : 'hurt');
   if (game.phase === 'over') return endGame();
-  const prefix = outcome.result === 'miss' ? theme.aiMiss : outcome.result === 'hit' ? theme.aiHit : theme.aiSunk(shipName(outcome.ship.name));
-  setStatus(`${prefix} ${theme.yourTurn}`);
+  let said;
+  if (!top) said = who === 'player' ? theme.sonarFound(outcome.count) : theme.aiSonar(coord(outcome.row, outcome.col));
+  else if (who === 'player') {
+    said = top.result === 'miss' ? theme.playerMiss : top.result === 'hit' ? theme.playerHit
+      : top.result === 'decoy' ? theme.playerDecoy : theme.playerSunk(shipName(top.ship.name));
+  } else {
+    said = top.result === 'miss' ? theme.aiMiss : top.result === 'hit' ? theme.aiHit
+      : top.result === 'decoy' ? theme.aiDecoy : theme.aiSunk(shipName(top.ship.name));
+  }
+  setStatus(`${volley ? `${theme.broadside} ` : ''}${said} ${who === 'player' ? theme.aiming : theme.yourTurn}`);
+}
+
+function captainSays(event) {
+  const cap = match && captainById(match.captain);
+  els.captain.hidden = !cap;
+  if (!cap) return;
+  els.captainFace.textContent = cap.face;
+  els.captainName.textContent = `${cap.name}:`;
+  els.captainLine.textContent = `“${taunt(cap, event)}”`;
 }
 
 function summarize(g, m, won) {
@@ -214,7 +285,8 @@ function summarize(g, m, won) {
     shots,
     hits,
     shipsLost: g.player.ships.filter(isSunk).length,
-    sequence: g.moves.filter((x) => x.who === 'player').map((x) => x.result),
+    powerups: Boolean(m.powerups),
+    sequence: g.moves.filter((x) => x.who === 'player' && x.result !== 'sonar').map((x) => x.result),
   };
 }
 
@@ -225,6 +297,19 @@ function endGame() {
   const summary = summarize(game, match, won);
   lastRecord = toRecord(game, match);
   const prev = stats;
+  const cap = captainById(match.captain);
+  const extra = [];
+  if (cap) {
+    const c = recordCampaign(campaign, cap.id, won, summary.shots);
+    campaign = c.progress;
+    saveCampaign(storage, campaign);
+    summary.campaignComplete = c.complete;
+    if (!won) extra.push(`${cap.name} wins this round. Challenge them again from the campaign.`);
+    else if (c.firstWin && c.complete) extra.push(`You defeated ${cap.name} and beat every captain on the seven seas!`);
+    else if (c.next) extra.push(`You defeated ${cap.name}! ${c.next.name} is waiting for you in the campaign.`);
+    else extra.push(`You defeated ${cap.name} again.`);
+    captainSays(won ? 'lose' : 'win');
+  }
   const result = recordGame(stats, summary);
   stats = result.stats;
   saveStats(storage, stats);
@@ -234,7 +319,6 @@ function endGame() {
   els.resultTitle.textContent = won ? theme.victoryTitle : theme.defeatTitle;
   els.resultText.textContent = `You fired ${summary.shots} shot${summary.shots === 1 ? '' : 's'} with ${accuracy}% accuracy.` +
     (won ? '' : ' Remaining enemy ships are now revealed.');
-  const extra = [];
   if (match.mode === 'daily') extra.push(`Daily challenge #${dailyNumber(match.date)} complete. A new fleet arrives tomorrow.`);
   if (won && stats.streak > 1) extra.push(`Win streak: ${stats.streak}`);
   if (!won && prev.streak > 1) extra.push(`Your ${prev.streak}-win streak has ended.`);
@@ -295,7 +379,7 @@ function setReplayStep(step, animate = false) {
   const last = rs.game.moves[rs.game.moves.length - 1];
   setStatus(last ? `Replay — ${describe(last, last.who)}` : 'Replay — the battle begins.');
   render();
-  if (animate && last) {
+  if (animate && last && last.result !== 'sonar') {
     impact(last.who === 'player' ? els.enemyBoard : els.playerBoard, outcomeOf(rs.game, last));
     sound.play(last.result);
   }
@@ -377,6 +461,7 @@ function render() {
   renderPicker();
   renderPlayerBoard(g);
   renderEnemyBoard(g);
+  renderPowerups(g);
   renderFleet(els.playerFleet, g.player.ships, true);
   renderFleet(els.enemyFleet, g.enemy.ships, false);
   els.orientationLabel.textContent = orientation === HORIZONTAL ? 'Horizontal' : 'Vertical';
@@ -438,8 +523,63 @@ function shipShape(el, ship, r, c) {
   if (i === ship.size - 1) el.classList.add('stern');
 }
 
+// Squares covered by each side's sonar pings: key -> { count, centre }.
+function sonarMarks(g, who) {
+  const marks = new Map();
+  for (const m of g.moves) {
+    if (m.who !== who || m.result !== 'sonar') continue;
+    for (let r = m.row - 1; r <= m.row + 1; r++) {
+      for (let c = m.col - 1; c <= m.col + 1; c++) {
+        if (r >= 0 && c >= 0 && r < BOARD_SIZE && c < BOARD_SIZE) marks.set(key(r, c), { count: m.count, centre: r === m.row && c === m.col });
+      }
+    }
+  }
+  return marks;
+}
+
+function markSonar(el, mark) {
+  if (mark) {
+    el.classList.add('sonar');
+    if (mark.count === 0) el.classList.add('sonar-clear');
+  }
+  if (mark?.centre) el.dataset.sonar = mark.count;
+  else delete el.dataset.sonar;
+}
+
+function aimCells() {
+  if (!aimCell || weapon === 'shot' || replayState || game.phase !== 'playing') return null;
+  const [r, c] = aimCell;
+  const cells = [];
+  if (weapon === 'sonar') {
+    for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) cells.push([r + dr, c + dc]);
+  } else {
+    cells.push(...shipCells(r, c, BROADSIDE_LENGTH, orientation));
+  }
+  return new Set(cells.map(([ar, ac]) => key(ar, ac)));
+}
+
+function renderPowerups(g) {
+  els.powerups.hidden = !g.powerups || g.phase === 'placement';
+  if (els.powerups.hidden) return;
+  const live = !replayState && game.phase === 'playing' && game.turn === 'player';
+  const ch = g.charges.player;
+  if (weapon !== 'shot' && !ch[weapon]) weapon = 'shot';
+  els.pwSonar.querySelector('.count').textContent = `×${ch.sonar}`;
+  els.pwBroadside.querySelector('.count').textContent = `×${ch.broadside} ${orientation === HORIZONTAL ? '→' : '↓'}`;
+  els.pwSonar.disabled = !live || !ch.sonar;
+  els.pwBroadside.disabled = !live || !ch.broadside;
+  els.pwShot.disabled = !live;
+  for (const [btn, w] of [[els.pwShot, 'shot'], [els.pwSonar, 'sonar'], [els.pwBroadside, 'broadside']]) {
+    btn.setAttribute('aria-pressed', String(weapon === w));
+  }
+  els.pwHint.textContent = weapon === 'sonar' ? 'Click a square to count the ship parts in the 3×3 area around it. Decoys show up too.'
+    : weapon === 'broadside' ? 'Click a square to fire 3 shots in a row. Press R or tap Broadside again to turn it.'
+    : 'One sonar ping, one broadside and a decoy each. Choose a weapon, then fire.';
+}
+
 function renderPlayerBoard(g) {
   const preview = previewCells();
+  const sonar = sonarMarks(g, 'ai');
   const last = lastMove(g, 'ai');
   const heat = els.radar.checked && g.phase !== 'placement' && g.ai ? g.ai.heatmap() : null;
   for (let r = 0; r < BOARD_SIZE; r++) {
@@ -454,6 +594,8 @@ function renderPlayerBoard(g) {
         shipShape(el, ship, r, c);
       }
       if (shot) el.classList.add(shot);
+      if (!shot && g.player.isDecoy(r, c)) el.classList.add('decoy-buoy');
+      markSonar(el, sonar.get(k));
       if (ship && isSunk(ship)) el.classList.add('sunk');
       if (preview && preview.cells.has(k)) el.classList.add(preview.ok ? 'preview-ok' : 'preview-bad');
       if (last === k) el.classList.add('last');
@@ -465,7 +607,7 @@ function renderPlayerBoard(g) {
         el.style.removeProperty('--heat');
       }
       el.disabled = g !== game || game.phase !== 'placement';
-      const desc = shot ? (ship && isSunk(ship) ? `sunk ${shipName(ship.name)}` : shot) : ship ? shipName(ship.name) : 'water';
+      const desc = shot ? (ship && isSunk(ship) ? `sunk ${shipName(ship.name)}` : shot) : ship ? shipName(ship.name) : g.player.isDecoy(r, c) ? 'decoy' : 'water';
       el.setAttribute('aria-label', `Your board ${coord(r, c)}: ${desc}`);
     }
   }
@@ -474,6 +616,8 @@ function renderPlayerBoard(g) {
 function renderEnemyBoard(g) {
   const playing = g.phase === 'playing' && !replayState;
   const last = lastMove(g, 'player');
+  const sonar = sonarMarks(g, 'player');
+  const aim = aimCells();
   els.enemyBoard.classList.toggle('inactive', g.phase === 'placement');
   els.enemyBoard.classList.toggle('waiting', playing && g.turn !== 'player');
   for (let r = 0; r < BOARD_SIZE; r++) {
@@ -488,10 +632,15 @@ function renderEnemyBoard(g) {
       if (sunk || reveal) shipShape(el, ship, r, c);
       if (sunk) el.classList.add('ship', 'sunk');
       else if (reveal) el.classList.add('ship', 'revealed');
+      if (!shot && (g.phase === 'over' || replayState) && g.enemy.isDecoy(r, c)) el.classList.add('decoy-buoy');
+      const mark = sonar.get(key(r, c));
+      markSonar(el, mark);
+      if (aim?.has(key(r, c))) el.classList.add('aim');
       if (last === key(r, c)) el.classList.add('last');
       el.disabled = !playing || g.turn !== 'player' || Boolean(shot);
       const desc = shot ? (sunk ? `sunk ${shipName(ship.name)}` : shot) : 'unknown';
-      el.setAttribute('aria-label', `Enemy board ${coord(r, c)}: ${desc}`);
+      const sonarDesc = mark?.centre ? `, sonar found ${mark.count}` : '';
+      el.setAttribute('aria-label', `Enemy board ${coord(r, c)}: ${desc}${sonarDesc}`);
     }
   }
 }
@@ -523,14 +672,31 @@ function showImpact(board, outcome) {
     if (!el) return;
     const isShot = r === outcome.row && c === outcome.col;
     const span = document.createElement('span');
-    span.className = `fx ${isShot ? (outcome.result === 'miss' ? 'fx-miss' : 'fx-hit') : 'fx-sink'}`;
+    const splash = outcome.result === 'miss' || outcome.result === 'decoy';
+    span.className = `fx ${isShot ? (splash ? 'fx-miss' : 'fx-hit') : 'fx-sink'}`;
     span.setAttribute('aria-hidden', 'true');
     if (!isShot) span.style.animationDelay = `${150 + i * 80}ms`;
     span.addEventListener('animationend', () => span.remove());
     setTimeout(() => span.remove(), 2500);
     el.appendChild(span);
   });
-  if (outcome.result !== 'miss') shake(board.closest('.board-wrap'), outcome.result === 'sunk' ? 9 : 4);
+  if (outcome.result === 'hit' || outcome.result === 'sunk') shake(board.closest('.board-wrap'), outcome.result === 'sunk' ? 9 : 4);
+}
+
+function ping(board, outcome) {
+  try {
+    for (let r = outcome.row - 1; r <= outcome.row + 1; r++) {
+      for (let c = outcome.col - 1; c <= outcome.col + 1; c++) {
+        const el = cellEl(board, r, c);
+        if (!el) continue;
+        const span = Object.assign(document.createElement('span'), { className: 'fx fx-sonar' });
+        span.setAttribute('aria-hidden', 'true');
+        span.style.animationDelay = `${(Math.abs(r - outcome.row) + Math.abs(c - outcome.col)) * 90}ms`;
+        el.appendChild(span);
+        setTimeout(() => span.remove(), 1500);
+      }
+    }
+  } catch { /* decoration */ }
 }
 
 const pirateFx = () => theme.id === 'pirate' && !reducedMotion.matches;
@@ -632,13 +798,41 @@ function logClass(outcome, who) {
   return sunk ? 'important' : '';
 }
 
-function describe(outcome, who) {
+function describe(outcome, who, volley = false) {
   const at = coord(outcome.row, outcome.col);
   const actor = who === 'player' ? theme.you : theme.ai;
-  if (outcome.result === 'miss') return `${actor} fired at ${at}: ${theme.missWord}`;
-  if (outcome.result === 'hit') return `${actor} fired at ${at}: hit!`;
+  if (outcome.result === 'sonar') return `${actor} pinged sonar at ${at}: ${outcome.count} contact${outcome.count === 1 ? '' : 's'}.`;
+  const fired = volley || outcome.power === 'broadside' ? 'fired a broadside at' : 'fired at';
+  if (outcome.result === 'miss') return `${actor} ${fired} ${at}: ${theme.missWord}`;
+  if (outcome.result === 'decoy') return `${actor} ${fired} ${at}: ${theme.decoyWord}`;
+  if (outcome.result === 'hit') return `${actor} ${fired} ${at}: hit!`;
   const owner = who === 'player' ? theme.theirs : theme.yours;
-  return `${actor} fired at ${at}: sunk ${owner} ${shipName(outcome.ship?.name ?? outcome.ship)}!`;
+  return `${actor} ${fired} ${at}: sunk ${owner} ${shipName(outcome.ship?.name ?? outcome.ship)}!`;
+}
+
+function renderCampaign() {
+  els.campaignList.replaceChildren(...CAPTAINS.map((cap, i) => {
+    const open = isUnlocked(campaign, i);
+    const best = campaign.beaten[cap.id];
+    const li = document.createElement('li');
+    li.className = best ? 'beaten' : open ? 'open' : 'locked';
+    const status = best ? `Beaten · best win ${best.bestShots} shots` : open ? 'Ready for battle' : `Beat ${CAPTAINS[i - 1].name} to unlock`;
+    li.innerHTML = `<span class="captain-face" aria-hidden="true">${cap.face}</span>
+      <div class="captain-info"><strong>${i + 1}. ${cap.name}</strong>
+      <span class="tag">${label(cap.difficulty)} AI${cap.powerups ? ' · Power-ups' : ''}</span>
+      <p>${cap.blurb}</p><p class="small">${best ? '★ ' : open ? '' : '🔒 '}${status}</p></div>`;
+    const btn = Object.assign(document.createElement('button'), { type: 'button', textContent: best ? 'Rematch' : 'Battle', disabled: !open });
+    btn.className = open && !best ? 'primary' : '';
+    btn.dataset.captain = cap.id;
+    btn.addEventListener('click', () => {
+      els.campaignDialog.close();
+      if (game.phase !== 'placement') newGame();
+      if (!game.allPlayerShipsPlaced()) game.player.placeFleetRandomly();
+      startMatch('campaign', cap);
+    });
+    li.appendChild(btn);
+    return li;
+  }));
 }
 
 function renderStats() {
@@ -696,7 +890,7 @@ function renderSoundButton() {
 // Rewrites the status line and battle log in the current theme's wording.
 function retellBattle() {
   els.log.replaceChildren();
-  if (match) log(match.mode === 'daily' ? theme.dailyLog(dailyNumber(match.date)) : theme.startLog(match.difficulty), 'important');
+  if (match) log(startLine(), 'important');
   for (const m of game.moves) log(describe(m, m.who), logClass(m, m.who));
   if (game.phase === 'placement') setStatus(theme.setup);
   else if (game.phase === 'over') {
@@ -738,6 +932,19 @@ function rotate() {
   orientation = orientation === HORIZONTAL ? VERTICAL : HORIZONTAL;
   if (drag?.moved) updateDragHover();
   render();
+}
+
+function chooseWeapon(w) {
+  if (w === 'broadside' && weapon === 'broadside') return rotate();
+  weapon = w;
+  render();
+}
+
+function aimAt(e) {
+  const cell = e.target.closest('.cell');
+  if (!cell) return;
+  aimCell = [Number(cell.dataset.row), Number(cell.dataset.col)];
+  if (weapon !== 'shot') renderEnemyBoard(view());
 }
 
 function updateDragHover() {
@@ -851,6 +1058,20 @@ buildBoard(els.enemyBoard, onEnemyBoardClick, 'Enemy board');
 
 els.playerBoard.addEventListener('mouseover', previewAt);
 els.playerBoard.addEventListener('focusin', previewAt);
+els.enemyBoard.addEventListener('mouseover', aimAt);
+els.enemyBoard.addEventListener('focusin', aimAt);
+els.enemyBoard.addEventListener('mouseleave', () => {
+  aimCell = null;
+  renderEnemyBoard(view());
+});
+els.pwShot.addEventListener('click', () => chooseWeapon('shot'));
+els.pwSonar.addEventListener('click', () => chooseWeapon('sonar'));
+els.pwBroadside.addEventListener('click', () => chooseWeapon('broadside'));
+els.campaignBtn.addEventListener('click', () => {
+  renderCampaign();
+  els.campaignDialog.showModal();
+});
+els.campaignClose.addEventListener('click', () => els.campaignDialog.close());
 els.playerBoard.addEventListener('mouseleave', () => {
   if (drag?.moved) return;
   hoverCell = null;
@@ -887,7 +1108,12 @@ els.newGame.addEventListener('click', () => {
 });
 els.playAgain.addEventListener('click', () => {
   els.dialog.close();
+  const fromCampaign = match?.mode === 'campaign';
   newGame();
+  if (fromCampaign) {
+    renderCampaign();
+    els.campaignDialog.showModal();
+  }
 });
 els.replayBtn.addEventListener('click', startReplay);
 els.share.addEventListener('click', () => match?.date && shareResult(match.date));
@@ -935,7 +1161,7 @@ els.soundBtn.addEventListener('click', () => {
 
 document.addEventListener('keydown', (e) => {
   if (e.ctrlKey || e.metaKey || e.altKey) return;
-  if ((e.key === 'r' || e.key === 'R') && game.phase === 'placement') rotate();
+  if ((e.key === 'r' || e.key === 'R') && (game.phase === 'placement' || (game.phase === 'playing' && weapon === 'broadside'))) rotate();
   if (replayState && !document.querySelector('dialog[open]') && e.target.tagName !== 'INPUT') {
     if (e.key === 'ArrowLeft') { pauseReplay(); setReplayStep(replayState.step - 1); }
     if (e.key === 'ArrowRight') { pauseReplay(); setReplayStep(replayState.step + 1, true); }

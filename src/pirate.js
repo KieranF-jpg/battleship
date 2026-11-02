@@ -10,9 +10,13 @@ const SQUAWKS = {
   'ai-sunk': ['Abandon ship! SQUAWK!', 'Polly wants revenge!'],
   win: ['Polly wants a treasure chest!', 'Victory! Rum for everyone!'],
   lose: ['SQUAWK! Every bird for itself!', 'Polly is swimming home...'],
+  'player-decoy': ["Bamboozled! 'Twas a barrel!", 'SQUAWK! A decoy!'],
+  'ai-decoy': ['Ha! They shot our decoy barrel!', 'Fooled ye! SQUAWK!'],
+  'player-sonar': ['Polly hears ships down there!', 'Ping! Ping! SQUAWK!'],
+  'ai-sonar': ["They be spyin' on us!", 'SQUAWK! Hide the rum!'],
 };
 
-const BOOMS = { miss: ['SPLOOSH!', 'KER-SPLASH!'], hit: ['KABOOM!', 'KRAKOOM!'], sunk: ['KER-RACK-A-BOOM!'] };
+const BOOMS = { miss: ['SPLOOSH!', 'KER-SPLASH!'], hit: ['KABOOM!', 'KRAKOOM!'], sunk: ['KER-RACK-A-BOOM!'], decoy: ['BAMBOOZLED!', 'DECOY!'] };
 
 const pick = (list, rnd = Math.random) => list[Math.floor(rnd() * list.length)];
 

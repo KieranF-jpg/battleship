@@ -8,6 +8,9 @@ export const FLEET = Object.freeze([
   { name: 'Destroyer', size: 2 },
 ]);
 
+export const BROADSIDE_LENGTH = 3;
+export const POWERUP_CHARGES = Object.freeze({ sonar: 1, broadside: 1 });
+
 export const HORIZONTAL = 'H';
 export const VERTICAL = 'V';
 
@@ -26,6 +29,7 @@ export class Board {
     this.size = size;
     this.ships = [];
     this.shots = new Map();
+    this.decoy = null;
   }
 
   inBounds(row, col) {
@@ -70,6 +74,33 @@ export class Board {
   clear() {
     this.ships = [];
     this.shots.clear();
+    this.decoy = null;
+  }
+
+  isDecoy(row, col) {
+    return Boolean(this.decoy) && this.decoy[0] === row && this.decoy[1] === col;
+  }
+
+  // Hides a one-square decoy on open water; it shows up on sonar but sinks nothing.
+  placeDecoy(rng = Math.random) {
+    const open = [];
+    for (let r = 0; r < this.size; r++) {
+      for (let c = 0; c < this.size; c++) if (!this.shipAt(r, c)) open.push([r, c]);
+    }
+    this.decoy = open[Math.floor(rng() * open.length)];
+  }
+
+  // Number of unhit ship squares (and an unshot decoy) in the 3x3 area centred on a square.
+  sonar(row, col) {
+    let count = 0;
+    for (let r = row - 1; r <= row + 1; r++) {
+      for (let c = col - 1; c <= col + 1; c++) {
+        if (!this.inBounds(r, c)) continue;
+        if (this.shipAt(r, c) && !this.isShot(r, c)) count++;
+        else if (this.isDecoy(r, c) && !this.isShot(r, c)) count++;
+      }
+    }
+    return count;
   }
 
   placeFleetRandomly(fleet = FLEET, rng = Math.random) {
@@ -97,6 +128,10 @@ export class Board {
     if (!this.inBounds(row, col)) throw new Error(`Shot out of bounds: ${row},${col}`);
     if (this.isShot(row, col)) throw new Error(`Cell already targeted: ${row},${col}`);
     const ship = this.shipAt(row, col);
+    if (!ship && this.isDecoy(row, col)) {
+      this.shots.set(key(row, col), 'decoy');
+      return { result: 'decoy', row, col };
+    }
     if (!ship) {
       this.shots.set(key(row, col), 'miss');
       return { result: 'miss', row, col };
@@ -123,9 +158,14 @@ export function isSunk(ship) {
 }
 
 export class Game {
-  constructor({ ai, rng = Math.random } = {}) {
+  constructor({ ai, rng = Math.random, powerups = false } = {}) {
     this.rng = rng;
     this.ai = ai;
+    this.powerups = powerups;
+    const charges = () => (powerups ? { ...POWERUP_CHARGES } : { sonar: 0, broadside: 0 });
+    this.charges = { player: charges(), ai: charges() };
+    // The player's actions in order: [row, col], [row, col, 'sonar'] or [row, col, 'broadside', orientation].
+    this.actions = [];
     this.player = new Board();
     this.enemy = new Board();
     this.phase = 'placement';
@@ -143,35 +183,107 @@ export class Game {
     if (this.phase !== 'placement') throw new Error('Game already started');
     if (!this.allPlayerShipsPlaced()) throw new Error('Place all ships first');
     this.enemy.placeFleetRandomly(FLEET, this.rng);
+    if (this.powerups) {
+      this.enemy.placeDecoy(this.rng);
+      this.player.placeDecoy(this.rng);
+    }
     this.phase = 'playing';
     this.turn = 'player';
   }
 
-  playerFire(row, col) {
-    if (this.phase !== 'playing' || this.turn !== 'player') return null;
-    if (!this.enemy.inBounds(row, col) || this.enemy.isShot(row, col)) return null;
-    const outcome = this.enemy.receiveShot(row, col);
-    this.record('player', outcome);
-    if (this.enemy.allSunk()) this.finish('player');
-    else this.turn = 'ai';
+  canAct(who) {
+    return this.phase === 'playing' && this.turn === who;
+  }
+
+  targetOf(who) {
+    return who === 'player' ? this.enemy : this.player;
+  }
+
+  passTurn(who) {
+    if (this.phase === 'playing') this.turn = who === 'player' ? 'ai' : 'player';
+  }
+
+  shoot(who, row, col) {
+    const board = this.targetOf(who);
+    const outcome = board.receiveShot(row, col);
+    if (who === 'ai') this.ai.recordResult(outcome);
+    this.record(who, outcome);
+    if (board.allSunk()) this.finish(who);
     return outcome;
   }
 
-  aiFire() {
-    if (this.phase !== 'playing' || this.turn !== 'ai') return null;
-    const [row, col] = this.ai.chooseShot();
-    const outcome = this.player.receiveShot(row, col);
-    this.ai.recordResult(outcome);
-    this.record('ai', outcome);
-    if (this.player.allSunk()) this.finish('ai');
-    else this.turn = 'player';
+  sonar(who, row, col) {
+    const board = this.targetOf(who);
+    if (!this.charges[who].sonar || !board.inBounds(row, col)) return null;
+    this.charges[who].sonar--;
+    const count = board.sonar(row, col);
+    this.moves.push({ who, row, col, result: 'sonar', count, ship: null });
+    if (who === 'ai') this.ai.recordSonar(row, col, count);
+    return { result: 'sonar', row, col, count };
+  }
+
+  // Up to three shots in a line from (row, col); squares already shot or off the board are skipped.
+  // `limit` stops the volley early, so a replay can show it shot by shot.
+  broadside(who, row, col, orientation, limit = Infinity) {
+    const board = this.targetOf(who);
+    if (!this.charges[who].broadside || (orientation !== HORIZONTAL && orientation !== VERTICAL)) return null;
+    const cells = shipCells(row, col, BROADSIDE_LENGTH, orientation).filter(([r, c]) => board.inBounds(r, c) && !board.isShot(r, c));
+    if (cells.length === 0) return null;
+    this.charges[who].broadside--;
+    const outcomes = [];
+    for (const [r, c] of cells) {
+      if (this.phase !== 'playing' || outcomes.length >= limit) break;
+      outcomes.push(this.shoot(who, r, c));
+      this.moves[this.moves.length - 1].power = 'broadside';
+    }
+    return { result: 'broadside', row, col, orientation, outcomes };
+  }
+
+  playerFire(row, col) {
+    if (!this.canAct('player')) return null;
+    if (!this.enemy.inBounds(row, col) || this.enemy.isShot(row, col)) return null;
+    const outcome = this.shoot('player', row, col);
+    this.actions.push([row, col]);
+    this.passTurn('player');
+    return outcome;
+  }
+
+  playerSonar(row, col) {
+    if (!this.canAct('player')) return null;
+    const outcome = this.sonar('player', row, col);
+    if (!outcome) return null;
+    this.actions.push([row, col, 'sonar']);
+    this.passTurn('player');
+    return outcome;
+  }
+
+  playerBroadside(row, col, orientation, limit = Infinity) {
+    if (!this.canAct('player')) return null;
+    const outcome = this.broadside('player', row, col, orientation, limit);
+    if (!outcome) return null;
+    this.actions.push([row, col, 'broadside', orientation]);
+    this.passTurn('player');
+    return outcome;
+  }
+
+  aiFire(limit = Infinity) {
+    if (!this.canAct('ai')) return null;
+    const power = this.powerups ? this.ai.choosePower(this.charges.ai) : null;
+    let outcome = null;
+    if (power?.type === 'sonar') outcome = this.sonar('ai', power.row, power.col);
+    if (power?.type === 'broadside') outcome = this.broadside('ai', power.row, power.col, power.orientation, limit);
+    if (!outcome) {
+      const [row, col] = this.ai.chooseShot();
+      outcome = this.shoot('ai', row, col);
+    }
+    this.passTurn('ai');
     return outcome;
   }
 
   record(who, outcome) {
     this.moves.push({ who, row: outcome.row, col: outcome.col, result: outcome.result, ship: outcome.ship ? outcome.ship.name : null });
     this.stats[who].shots++;
-    if (outcome.result !== 'miss') this.stats[who].hits++;
+    if (outcome.result === 'hit' || outcome.result === 'sunk') this.stats[who].hits++;
   }
 
   finish(winner) {
