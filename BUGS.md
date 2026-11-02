@@ -6,7 +6,7 @@ This document covers how the game was tested, the bugs that testing found, and h
 
 | Layer | What it checks | How to run it |
 |---|---|---|
-| Unit tests (14) | Ship placement rules (edges, overlaps, moving a ship), hit/miss/sunk results, rejecting repeat and out-of-bounds shots, turn order, win detection, and the AI's targeting behaviour | `npm test` |
+| Unit tests (25) | Ship placement rules (edges, overlaps, moving a ship), hit/miss/sunk results, rejecting repeat and out-of-bounds shots, turn order, win detection, the AI's targeting behaviour, seeded replay and resume, stats, achievements and the daily challenge | `npm test` |
 | AI simulation | Plays 6,000 full games (2,000 per difficulty) against random fleets. Fails if the AI ever fires at the same square twice, fires off the board, or needs more than 100 shots | `npm run simulate` |
 | Browser playthrough | Drives the real page in Chromium with Playwright: placing ships by mouse and keyboard, rotating, randomizing, double-clicking, clicking during the AI's turn, playing a full game, dismissing the end screen, restarting, and checking for console errors | `node tests/e2e.mjs` |
 | Visual review | Screenshots at desktop (1280px) and phone (390px) widths, checked by eye | (manual) |
@@ -36,6 +36,14 @@ This document covers how the game was tested, the bugs that testing found, and h
 - **Root cause:** The preview was only updated on `mouseover` events.
 - **Fix:** The preview now also updates on `focusin`, so keyboard focus behaves like the mouse.
 - **Regression test:** `tests/e2e.mjs`, "keyboard focus shows placement preview".
+
+### 4. `npm test` failed on Node 22 and later
+
+- **Symptom:** `npm test` reported a single failing "tests" test and ran none of the real tests.
+- **How it was found:** Running the suite on Node 24.
+- **Root cause:** The script was `node --test tests/`. Newer Node versions treat that argument as a file to run rather than a folder to search, so they tried to execute the folder itself.
+- **Fix:** The script now passes the test files explicitly (`node --test tests/*.test.js`), which works on every Node version with `node:test`.
+- **Regression check:** `npm test` runs all 25 tests.
 
 ## Problems checked for and covered by tests
 

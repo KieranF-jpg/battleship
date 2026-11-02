@@ -3,7 +3,9 @@ import { chromium } from 'playwright';
 
 const url = process.argv[2] || 'http://localhost:8080/';
 const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: 1200, height: 900 } });
+const context = await browser.newContext({ viewport: { width: 1200, height: 900 }, permissions: ['clipboard-read', 'clipboard-write'] });
+const page = await context.newPage();
+page.on('dialog', (d) => d.accept());
 const errors = [];
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('console', (m) => m.type() === 'error' && errors.push(m.text()));
@@ -73,6 +75,30 @@ const canRestart = await page.locator('#setup').isVisible() || await page.locato
   await page.locator('#new-game-btn').isVisible().catch(() => false);
 check(canRestart, 'player can still start a new game after dismissing the dialog with Escape');
 
+// Stats and achievements were recorded for the finished game.
+await page.click('#stats-btn');
+check((await page.locator('#stats-body .tile .value').first().textContent()) === '1', 'stats count the finished battle');
+check(await page.locator('#stats-body .badges li.unlocked').count() >= 1, 'an achievement is unlocked after the first game');
+await page.click('#stats-close-btn');
+
+// Replay the finished game with the AI radar.
+await page.locator('#game-over').evaluate((d) => d.showModal());
+await page.click('#replay-btn');
+check(await page.locator('#replay-bar').isVisible(), 'replay controls appear');
+await page.click('#replay-play');
+const total = Number(await page.locator('#replay-range').getAttribute('max'));
+check(total > 30, `replay covers every shot (${total})`);
+await page.locator('#replay-range').fill('10');
+check((await page.locator('#replay-label').textContent()) === `Shot 10 of ${total}`, 'scrubbing jumps to a shot');
+check(await page.locator('#enemy-board .cell.hit, #enemy-board .cell.miss').count() === 5, 'board shows the state at that shot');
+check(await page.locator('#enemy-board .cell.ship').count() === 17, 'replay reveals the enemy fleet');
+check(await page.locator('#player-board .cell.heat').count() > 0, 'replay shows the AI radar heatmap');
+await page.click('#replay-next');
+check((await page.locator('#replay-label').textContent()) === `Shot 11 of ${total}`, 'next steps forward one shot');
+await page.click('#replay-exit');
+check(await page.locator('#replay-bar').isHidden(), 'exit replay hides controls');
+check(await page.locator('#enemy-board .cell.hit, #enemy-board .cell.miss').count() > 30, 'exiting replay restores the final board');
+
 await page.goto(url);
 await page.click('#random-btn');
 await page.click('#start-btn');
@@ -83,6 +109,62 @@ await page.evaluate(() => document.getElementById('play-again-btn').click());
 await page.waitForTimeout(1000);
 check(await page.locator('#player-board .cell.hit, #player-board .cell.miss').count() === 0, 'play again resets boards and no stray AI shot');
 check(await page.locator('#setup').isVisible(), 'play again returns to setup');
+
+// Drag and drop placement.
+const centre = async (loc) => { const b = await loc.boundingBox(); return [b.x + b.width / 2, b.y + b.height / 2]; };
+async function dragTo(from, to) {
+  await page.mouse.move(...await centre(from));
+  await page.mouse.down();
+  await page.mouse.move(...await centre(to), { steps: 8 });
+  await page.mouse.up();
+}
+await page.click('#clear-btn');
+await dragTo(page.locator('#ship-picker button').first(), cell('player', 3, 2));
+check(await cell('player', 3, 2).evaluate((e) => e.classList.contains('ship') && e.classList.contains('bow')) &&
+  await page.locator('#player-board .cell.ship').count() === 5, 'drag a ship from the picker onto the board');
+await dragTo(cell('player', 3, 4), cell('player', 6, 4));
+check(await cell('player', 6, 2).evaluate((e) => e.classList.contains('bow')) &&
+  !(await cell('player', 3, 2).evaluate((e) => e.classList.contains('ship'))), 'drag a placed ship to move it, keeping the grab point');
+await dragTo(cell('player', 6, 4), cell('player', 6, 9));
+check(await cell('player', 6, 2).evaluate((e) => e.classList.contains('bow')) &&
+  await page.locator('#player-board .cell.ship').count() === 5, 'dropping off the board snaps the ship back');
+
+// Saved game resumes after a reload, and the AI radar can be shown live.
+await page.click('#random-btn');
+await page.click('#start-btn');
+await cell('enemy', 0, 0).click();
+await page.waitForFunction(() => document.querySelectorAll('#player-board .cell.hit, #player-board .cell.miss').length === 1);
+await cell('enemy', 9, 9).click();
+await page.waitForFunction(() => document.querySelectorAll('#player-board .cell.hit, #player-board .cell.miss').length === 2);
+await page.reload();
+check(await page.locator('#setup').isHidden() &&
+  await page.locator('#enemy-board .cell.hit, #enemy-board .cell.miss').count() === 2 &&
+  await page.locator('#player-board .cell.hit, #player-board .cell.miss').count() === 2, 'unfinished battle resumes after reload');
+check((await page.locator('#log').textContent()).includes('Resumed'), 'log notes the resumed battle');
+await page.check('#radar-toggle');
+check(await page.locator('#player-board .cell.heat').count() > 0, 'live AI radar shows a heatmap');
+
+// Abandoning counts as a loss; then the daily challenge and its share text.
+await page.click('#new-game-btn');
+await page.click('#random-btn');
+await page.click('#daily-btn');
+check((await page.locator('#log').textContent()).includes('Daily challenge #'), 'daily challenge starts');
+await cell('enemy', 4, 4).click();
+await page.waitForTimeout(800);
+await page.click('#new-game-btn');
+check((await page.locator('#daily-btn').textContent()).includes('lost · Share result'), 'daily challenge is one attempt per day');
+await page.click('#daily-btn');
+await page.locator('.toast', { hasText: 'Result copied' }).waitFor();
+const shared = await page.evaluate(() => navigator.clipboard.readText());
+check(shared.startsWith('⚓ Battleship Daily #') && shared.includes('Defeated after 1 shot ·'), 'share copies the daily result');
+await page.click('#stats-btn');
+check((await page.locator('#stats-body .tile .value').first().textContent()) === '3', 'abandoned battles count in stats');
+await page.click('#stats-close-btn');
+
+// Mute is remembered.
+await page.click('#sound-btn');
+await page.reload();
+check((await page.locator('#sound-btn').textContent()) === 'Sound off', 'mute setting persists across reloads');
 
 check(errors.length === 0, `no console errors ${errors.join(' | ')}`);
 await browser.close();

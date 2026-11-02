@@ -4,7 +4,8 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Battleship vs AI</title>
-  <meta name="description" content="Play Battleship in your browser against an AI opponent.">
+  <meta name="description" content="Play Battleship in your browser against an AI opponent, with a daily challenge, stats and achievements.">
+  <meta name="theme-color" content="#0b1d33">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
   <link rel="stylesheet" href="style.css">
 </head>
@@ -12,12 +13,16 @@
   <header>
     <h1>Battleship</h1>
     <p class="tagline">Sink the enemy fleet before the AI sinks yours.</p>
+    <div class="toolbar">
+      <button id="stats-btn" type="button">Stats &amp; achievements</button>
+      <button id="sound-btn" type="button" aria-pressed="true">Sound on</button>
+    </div>
   </header>
 
   <main>
     <section id="setup" class="panel" aria-labelledby="setup-title">
       <h2 id="setup-title">1. Deploy your fleet</h2>
-      <p class="hint">Pick a ship, then click your board to place it. Press <kbd>R</kbd> or use Rotate to turn it. Click a placed ship to move it.</p>
+      <p class="hint">Pick a ship, then click your board to place it, or drag ships into position. Press <kbd>R</kbd> or use Rotate to turn it. Click or drag a placed ship to move it.</p>
       <div id="ship-picker" class="ship-picker" role="group" aria-label="Ships to place"></div>
       <div class="controls">
         <button id="rotate-btn" type="button">Rotate (<span id="orientation-label">Horizontal</span>)</button>
@@ -32,7 +37,10 @@
           <option value="hard" selected>Hard</option>
         </select>
         <button id="start-btn" type="button" class="primary" disabled>Start battle</button>
+        <span class="or">or</span>
+        <button id="daily-btn" type="button" class="daily">Daily challenge</button>
       </div>
+      <p class="hint small" id="daily-hint">The daily challenge gives everyone the same enemy fleet and Hard AI. One attempt per day; share your result.</p>
     </section>
 
     <section id="status" class="panel status" aria-live="polite">
@@ -40,11 +48,24 @@
       <button id="new-game-btn" type="button" hidden>New game</button>
     </section>
 
+    <section id="replay-bar" class="panel replay-bar" aria-label="Replay controls" hidden>
+      <button id="replay-prev" type="button" aria-label="Previous shot">◀</button>
+      <button id="replay-play" type="button" aria-label="Play">▶</button>
+      <button id="replay-next" type="button" aria-label="Next shot">▶|</button>
+      <input id="replay-range" type="range" min="0" max="0" value="0" aria-label="Replay position">
+      <span id="replay-label" class="replay-label"></span>
+      <button id="replay-exit" type="button">Exit replay</button>
+    </section>
+
     <div class="boards">
       <section class="board-wrap" aria-labelledby="player-title">
         <h2 id="player-title">Your fleet</h2>
         <div id="player-board" class="board" role="grid" aria-label="Your board"></div>
         <ul id="player-fleet" class="fleet" aria-label="Your ships"></ul>
+        <label id="radar-row" class="radar-row" hidden>
+          <input id="radar-toggle" type="checkbox">
+          AI radar: show where the AI's odds say your ships are
+        </label>
       </section>
       <section class="board-wrap" aria-labelledby="enemy-title">
         <h2 id="enemy-title">Enemy waters</h2>
@@ -59,11 +80,28 @@
     </section>
   </main>
 
-  <dialog id="game-over">
+  <dialog id="game-over" aria-labelledby="result-title">
     <h2 id="result-title"></h2>
     <p id="result-text"></p>
-    <button id="play-again-btn" type="button" class="primary">Play again</button>
+    <ul id="result-extra" class="result-extra"></ul>
+    <div class="dialog-actions">
+      <button id="play-again-btn" type="button" class="primary">Play again</button>
+      <button id="replay-btn" type="button">Watch replay</button>
+      <button id="share-btn" type="button" hidden>Share result</button>
+      <button id="close-result-btn" type="button">Close</button>
+    </div>
   </dialog>
+
+  <dialog id="stats-dialog" aria-labelledby="stats-title">
+    <h2 id="stats-title">Stats &amp; achievements</h2>
+    <div id="stats-body"></div>
+    <div class="dialog-actions">
+      <button id="stats-close-btn" type="button" class="primary">Close</button>
+      <button id="stats-reset-btn" type="button">Reset stats</button>
+    </div>
+  </dialog>
+
+  <div id="toasts" class="toasts" aria-live="polite"></div>
 
   <footer>
     <a href="https://github.com/KieranF-jpg/battleship">Source on GitHub</a>

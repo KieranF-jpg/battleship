@@ -4,6 +4,8 @@
   --water: #1d4f7c;
   --water-hover: #2a6aa3;
   --ship: #8a99a8;
+  --hull-light: #b4c1cd;
+  --hull-dark: #66788a;
   --hit: #e2463b;
   --miss: #c8d6e5;
   --sunk: #6b1e1a;
@@ -26,6 +28,7 @@ body {
 }
 
 header, footer { text-align: center; padding: 1rem; }
+.toolbar { display: flex; gap: 0.5rem; justify-content: center; flex-wrap: wrap; margin-top: 0.75rem; }
 header h1 { margin: 0; letter-spacing: 0.1em; text-transform: uppercase; }
 .tagline { margin: 0.25rem 0 0; color: var(--muted); }
 footer a { color: var(--muted); }
@@ -86,12 +89,30 @@ button.primary:hover:not(:disabled) { background: #ffc95e; }
   padding: 0;
   border-radius: 3px;
   border: none;
-  background: var(--water);
+  background: radial-gradient(circle at 30% 25%, #ffffff14, transparent 60%), var(--water);
   position: relative;
+  transition: background-color 0.15s;
 }
 .cell:hover:not(:disabled) { background: var(--water-hover); }
 .cell:disabled { cursor: default; opacity: 1; }
-.cell.ship { background: var(--ship); }
+
+/* Ships: each segment is part of one hull, with a rounded bow and stern. */
+.cell.ship { --hull: linear-gradient(to bottom, var(--hull-light), var(--hull-dark)); background: radial-gradient(circle, #4b5a68 0 16%, transparent 19%), var(--hull); }
+.cell.ship.v { --hull: linear-gradient(to right, var(--hull-light), var(--hull-dark)); }
+.cell.ship.h:not(.stern) { border-top-right-radius: 0; border-bottom-right-radius: 0; }
+.cell.ship.h:not(.bow) { border-top-left-radius: 0; border-bottom-left-radius: 0; }
+.cell.ship.v:not(.stern) { border-bottom-left-radius: 0; border-bottom-right-radius: 0; }
+.cell.ship.v:not(.bow) { border-top-left-radius: 0; border-top-right-radius: 0; }
+.cell.ship.h.bow { border-radius: 50% 0 0 50% / 50% 0 0 50%; }
+.cell.ship.h.stern { border-radius: 0 25% 25% 0; }
+.cell.ship.v.bow { border-radius: 50% 50% 0 0 / 50% 50% 0 0; }
+.cell.ship.v.stern { border-radius: 0 0 25% 25%; }
+.cell.ship.h.bow.stern, .cell.ship.v.bow.stern { border-radius: 50%; }
+.cell.ship:not(.stern)::before { content: ""; position: absolute; background: var(--hull-dark); }
+.cell.ship.h:not(.stern)::before { top: 18%; bottom: 18%; right: -2px; width: 2px; }
+.cell.ship.v:not(.stern)::before { left: 18%; right: 18%; bottom: -2px; height: 2px; }
+.cell.ship.revealed { opacity: 0.55; }
+
 .cell.preview-ok { background: var(--ok); }
 .cell.preview-bad { background: var(--bad); }
 .cell.miss::after {
@@ -99,9 +120,29 @@ button.primary:hover:not(:disabled) { background: #ffc95e; }
   background: var(--miss); border-radius: 50%;
 }
 .cell.hit { background: var(--hit); }
-.cell.hit::after { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; }
-.cell.sunk { background: var(--sunk); }
-.cell.last { box-shadow: 0 0 0 2px var(--accent); }
+.cell.ship.hit { --hull-light: #ff7a5c; --hull-dark: #b52a20; animation: burn 1.4s ease-in-out infinite alternate; }
+.cell.hit::after { content: "✕"; position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-weight: 900; color: #fff; z-index: 1; }
+.cell.sunk, .cell.ship.sunk { --hull-light: #8a2a24; --hull-dark: #4a1210; animation: none; }
+.cell.ship.hit, .cell.ship.sunk { background: var(--hull); }
+.cell.sunk:not(.ship) { background: var(--sunk); }
+.cell.last { box-shadow: 0 0 0 2px var(--accent); z-index: 2; }
+@keyframes burn { from { filter: brightness(1); } to { filter: brightness(1.25) saturate(1.2); } }
+
+/* AI radar heatmap: warmer squares are where the AI expects your ships. */
+.cell.heat:not(.hit):not(.miss) { box-shadow: inset 0 0 0 100px rgb(255 140 0 / calc(var(--heat) * 0.75)); }
+.cell.heat.last { box-shadow: 0 0 0 2px var(--accent), inset 0 0 0 100px rgb(255 140 0 / calc(var(--heat) * 0.75)); }
+
+/* Shot effects */
+.fx { position: absolute; inset: 0; pointer-events: none; z-index: 3; border-radius: 50%; }
+.fx-miss { border: 2px solid #e8f3ff; animation: ripple 0.6s ease-out forwards; }
+.fx-hit {
+  background: radial-gradient(circle, #fff6c2 0 15%, #ffb02e 35%, #e2463b 60%, transparent 70%);
+  animation: blast 0.55s ease-out forwards;
+}
+.fx-sink { border-radius: 3px; background: #ffb02e; animation: sink-flash 0.7s ease-out both; }
+@keyframes ripple { from { transform: scale(0.2); opacity: 1; } to { transform: scale(2.2); opacity: 0; } }
+@keyframes blast { 0% { transform: scale(0.2); opacity: 1; } 60% { opacity: 1; } 100% { transform: scale(2.4); opacity: 0; } }
+@keyframes sink-flash { 0% { opacity: 0; } 20% { opacity: 0.9; } 100% { opacity: 0; transform: translateY(15%); } }
 
 .board.enemy.inactive { opacity: 0.5; }
 .board.enemy.waiting .cell { cursor: wait; }
@@ -119,7 +160,62 @@ dialog {
   box-shadow: 0 10px 40px #000a;
 }
 dialog::backdrop { background: #000a; }
+dialog[open] { animation: pop 0.25s ease-out; }
+@keyframes pop { from { transform: scale(0.92); opacity: 0; } to { transform: none; opacity: 1; } }
+.dialog-actions { display: flex; flex-wrap: wrap; gap: 0.5rem; justify-content: center; margin-top: 1rem; }
+.result-extra { list-style: none; padding: 0; margin: 0; color: var(--accent); display: grid; gap: 0.35rem; }
+#stats-dialog { width: min(560px, calc(100vw - 2rem)); max-height: calc(100vh - 2rem); }
+#stats-dialog h3 { margin: 1rem 0 0.5rem; font-size: 1rem; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.5rem; }
+.tile { background: #0b1d33; border-radius: 8px; padding: 0.5rem; display: flex; flex-direction: column; }
+.tile .value { font-size: 1.4rem; font-weight: 700; }
+.tile .label { font-size: 0.75rem; color: var(--muted); }
+.by-difficulty { width: 100%; margin-top: 0.75rem; border-collapse: collapse; font-size: 0.9rem; }
+.by-difficulty th, .by-difficulty td { padding: 0.25rem 0.5rem; border-bottom: 1px solid #ffffff1a; }
+.badges { list-style: none; padding: 0; margin: 0; display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.4rem; text-align: left; }
+.badges li { background: #0b1d33; border-radius: 8px; padding: 0.4rem 0.6rem; display: flex; flex-direction: column; font-size: 0.85rem; }
+.badges li span { color: var(--muted); font-size: 0.75rem; }
+.badges li.unlocked strong { color: var(--accent); }
+.badges li.locked { opacity: 0.55; }
+
+.or { color: var(--muted); }
+button.daily { border-color: var(--accent); }
+button.daily.done { border-style: dashed; }
+.hint.small { font-size: 0.85rem; margin: 0.5rem 0 0; }
+
+.replay-bar[hidden] { display: none; }
+.replay-bar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: center; }
+.replay-bar input[type="range"] { flex: 1 1 200px; accent-color: var(--accent); }
+.replay-label { min-width: 8.5em; color: var(--muted); font-variant-numeric: tabular-nums; }
+.radar-row { margin-top: 0.5rem; font-size: 0.85rem; color: var(--muted); display: flex; gap: 0.4rem; align-items: center; max-width: calc(var(--cell) * 11 + 20px); }
+.radar-row[hidden] { display: none; }
+
+.board.placing .cell.ship { cursor: grab; touch-action: none; }
+.ship-picker button { touch-action: none; }
+body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; }
+
+.toasts { position: fixed; right: 1rem; bottom: 1rem; display: grid; gap: 0.5rem; z-index: 10; pointer-events: none; }
+.toast {
+  background: var(--panel); border-left: 4px solid var(--accent); border-radius: 8px;
+  padding: 0.6rem 0.9rem; box-shadow: 0 6px 24px #000a; display: flex; flex-direction: column;
+  max-width: 320px; animation: toast-in 0.3s ease-out; transition: opacity 0.4s, transform 0.4s;
+}
+.toast span { color: var(--muted); font-size: 0.85rem; }
+.toast.out { opacity: 0; transform: translateX(20px); }
+@keyframes toast-in { from { opacity: 0; transform: translateY(20px); } }
+
+.confetti { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 20; }
+.confetti i { position: absolute; top: -12px; width: 8px; height: 14px; border-radius: 2px; animation: fall linear forwards; }
+@keyframes fall { to { transform: translate(var(--drift), 105vh) rotate(var(--spin)); } }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .fx { display: none; }
+}
 
 @media (max-width: 520px) {
   :root { --cell: calc((100vw - 3rem) / 11.5); }
+  .tiles { grid-template-columns: repeat(2, 1fr); }
+  .badges { grid-template-columns: 1fr; }
+  .toasts { left: 1rem; }
 }
