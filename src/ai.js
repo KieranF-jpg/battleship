@@ -93,9 +93,10 @@ export class AI {
     return targets;
   }
 
-  chooseHard(open) {
-    const hits = this.unresolvedHits();
-    const targeting = hits.length > 0;
+  // For every unshot square, how many ways the remaining ships could still sit over it.
+  // While there are unresolved hits, only placements through those hits count.
+  probabilityScores() {
+    const targeting = this.unresolvedHits().length > 0;
     const scores = new Map();
     for (const size of this.remaining) {
       for (const orientation of [HORIZONTAL, VERTICAL]) {
@@ -121,6 +122,20 @@ export class AI {
         }
       }
     }
+    return scores;
+  }
+
+  // Scores scaled to 0..1 for display.
+  heatmap() {
+    const scores = this.probabilityScores();
+    const max = Math.max(0, ...scores.values());
+    const heat = new Map();
+    if (max > 0) for (const [k, v] of scores) heat.set(k, v / max);
+    return heat;
+  }
+
+  chooseHard(open) {
+    const scores = this.probabilityScores();
     if (scores.size === 0) return this.chooseMedium(open);
     let best = -1;
     let bestCells = [];

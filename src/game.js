@@ -132,6 +132,7 @@ export class Game {
     this.turn = 'player';
     this.winner = null;
     this.stats = { player: { shots: 0, hits: 0 }, ai: { shots: 0, hits: 0 } };
+    this.moves = [];
   }
 
   allPlayerShipsPlaced() {
@@ -168,6 +169,7 @@ export class Game {
   }
 
   record(who, outcome) {
+    this.moves.push({ who, row: outcome.row, col: outcome.col, result: outcome.result, ship: outcome.ship ? outcome.ship.name : null });
     this.stats[who].shots++;
     if (outcome.result !== 'miss') this.stats[who].hits++;
   }
