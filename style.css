@@ -194,7 +194,10 @@ button.daily.done { border-style: dashed; }
 .ship-picker button { touch-action: none; }
 body.dragging, body.dragging * { cursor: grabbing !important; user-select: none; }
 
-.toasts { position: fixed; right: 1rem; bottom: 1rem; display: grid; gap: 0.5rem; z-index: 10; pointer-events: none; }
+.toasts {
+  position: fixed; inset: auto 1rem 1rem auto; margin: 0; padding: 0; border: 0; background: none;
+  overflow: visible; display: grid; gap: 0.5rem; z-index: 10; pointer-events: none;
+}
 .toast {
   background: var(--panel); border-left: 4px solid var(--accent); border-radius: 8px;
   padding: 0.6rem 0.9rem; box-shadow: 0 6px 24px #000a; display: flex; flex-direction: column;
