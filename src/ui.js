@@ -4,6 +4,7 @@ import { randomSeed } from './rng.js';
 import { DAILY_DIFFICULTY, dailyNumber, dailySeed, shareText, todayKey } from './daily.js';
 import { ACHIEVEMENTS, emptyStats, loadStats, recordGame, saveStats, winRate } from './stats.js';
 import * as sound from './sound.js';
+import { THEMES, loadTheme, saveTheme } from './theme.js';
 
 const AI_DELAY_MS = 650;
 const END_DELAY_MS = 900;
@@ -63,6 +64,7 @@ const els = {
   statsClose: $('stats-close-btn'),
   statsReset: $('stats-reset-btn'),
   soundBtn: $('sound-btn'),
+  themeBtn: $('theme-btn'),
   toasts: $('toasts'),
 };
 
@@ -78,8 +80,10 @@ let suppressClick = false;
 let lastRecord = null;
 let replayState = null;
 let stats = loadStats(storage);
+let theme = loadTheme(storage);
 
 const coord = (r, c) => `${COLS[c]}${r + 1}`;
+const shipName = (name) => theme.ships[name] ?? name;
 const view = () => (replayState ? replayState.game : game);
 
 // ---------- persistence ----------
@@ -113,8 +117,8 @@ function resumeSaved() {
   els.difficulty.value = difficulty;
   els.setup.hidden = true;
   for (const m of game.moves) log(describe(m, m.who), logClass(m, m.who));
-  log('Resumed your unfinished battle.', 'important');
-  setStatus('Battle resumed. Your turn — fire on the enemy waters.');
+  log(theme.resumedLog, 'important');
+  setStatus(theme.resumed);
   render();
   return true;
 }
@@ -133,7 +137,7 @@ function newGame({ keepSave = false } = {}) {
   hoverCell = null;
   els.log.innerHTML = '';
   els.setup.hidden = false;
-  setStatus('Place your ships to begin.');
+  setStatus(theme.setup);
   render();
 }
 
@@ -151,10 +155,8 @@ function startMatch(mode) {
   game = createMatch(match);
   saveCurrent();
   els.setup.hidden = true;
-  setStatus('Battle started! Fire on the enemy waters.');
-  log(mode === 'daily'
-    ? `Daily challenge #${dailyNumber(date)} started against the Hard AI.`
-    : `Battle started against the ${match.difficulty} AI.`, 'important');
+  setStatus(theme.started);
+  log(mode === 'daily' ? theme.dailyLog(dailyNumber(date)) : theme.startLog(match.difficulty), 'important');
   sound.play('place');
   render();
 }
@@ -170,7 +172,8 @@ function onEnemyBoardClick(r, c) {
   render();
   impact(els.enemyBoard, outcome);
   if (game.phase === 'over') return endGame();
-  setStatus(outcome.result === 'miss' ? 'Miss. The AI is aiming…' : outcome.result === 'hit' ? 'Hit! The AI is aiming…' : `You sank the enemy ${outcome.ship.name}! The AI is aiming…`);
+  const said = outcome.result === 'miss' ? theme.playerMiss : outcome.result === 'hit' ? theme.playerHit : theme.playerSunk(shipName(outcome.ship.name));
+  setStatus(`${said} ${theme.aiming}`);
   aiTimer = setTimeout(aiTurn, AI_DELAY_MS);
 }
 
@@ -184,8 +187,8 @@ function aiTurn() {
   render();
   impact(els.playerBoard, outcome);
   if (game.phase === 'over') return endGame();
-  const prefix = outcome.result === 'miss' ? 'The AI missed.' : outcome.result === 'hit' ? 'The AI hit your ship!' : `The AI sank your ${outcome.ship.name}!`;
-  setStatus(`${prefix} Your turn — fire on the enemy waters.`);
+  const prefix = outcome.result === 'miss' ? theme.aiMiss : outcome.result === 'hit' ? theme.aiHit : theme.aiSunk(shipName(outcome.ship.name));
+  setStatus(`${prefix} ${theme.yourTurn}`);
 }
 
 function summarize(g, m, won) {
@@ -214,8 +217,8 @@ function endGame() {
   saveStats(storage, stats);
 
   const accuracy = summary.shots ? Math.round((summary.hits / summary.shots) * 100) : 0;
-  setStatus(won ? 'Victory! You sank the entire enemy fleet.' : 'Defeat. The AI sank your fleet.');
-  els.resultTitle.textContent = won ? 'Victory!' : 'Defeat';
+  setStatus(won ? theme.victory : theme.defeat);
+  els.resultTitle.textContent = won ? theme.victoryTitle : theme.defeatTitle;
   els.resultText.textContent = `You fired ${summary.shots} shot${summary.shots === 1 ? '' : 's'} with ${accuracy}% accuracy.` +
     (won ? '' : ' Remaining enemy ships are now revealed.');
   const extra = [];
@@ -230,7 +233,7 @@ function endGame() {
   }
   els.resultExtra.replaceChildren(...extra.map((t) => Object.assign(document.createElement('li'), { textContent: t })));
   els.share.hidden = match.mode !== 'daily';
-  log(won ? 'You won the battle!' : 'The AI won the battle.', 'important');
+  log(won ? theme.wonLog : theme.lostLog, 'important');
   sound.play(won ? 'win' : 'lose', 0.5);
   if (won) celebrate();
 
@@ -317,7 +320,7 @@ function stopReplay() {
 
 function exitReplay() {
   stopReplay();
-  setStatus(game.winner === 'player' ? 'Victory! You sank the entire enemy fleet.' : 'Defeat. The AI sank your fleet.');
+  setStatus(game.winner === 'player' ? theme.victory : theme.defeat);
   render();
 }
 
@@ -373,7 +376,7 @@ function renderDailyButton() {
   const date = todayKey();
   const done = stats.daily.results[date];
   const n = dailyNumber(date);
-  els.daily.textContent = done ? `Daily #${n}: ${done.won ? 'won' : 'lost'} · Share result` : `Daily challenge #${n}`;
+  els.daily.textContent = done ? theme.dailyDone(n, done.won) : theme.daily(n);
   els.daily.disabled = !done && !game.allPlayerShipsPlaced();
   els.daily.classList.toggle('done', Boolean(done));
 }
@@ -386,7 +389,7 @@ function renderPicker() {
     btn.type = 'button';
     btn.className = placed ? 'placed' : '';
     btn.setAttribute('aria-pressed', String(spec.name === selectedShip));
-    btn.innerHTML = `${spec.name} <span class="pips" aria-hidden="true">${'<i></i>'.repeat(spec.size)}</span>`;
+    btn.innerHTML = `${shipName(spec.name)} <span class="pips" aria-hidden="true">${'<i></i>'.repeat(spec.size)}</span>`;
     btn.addEventListener('click', () => {
       if (suppressClick) return;
       if (placed) game.player.removeShip(spec.name);
@@ -446,7 +449,7 @@ function renderPlayerBoard(g) {
         el.style.removeProperty('--heat');
       }
       el.disabled = g !== game || game.phase !== 'placement';
-      const desc = shot ? (ship && isSunk(ship) ? `sunk ${ship.name}` : shot) : ship ? ship.name : 'water';
+      const desc = shot ? (ship && isSunk(ship) ? `sunk ${shipName(ship.name)}` : shot) : ship ? shipName(ship.name) : 'water';
       el.setAttribute('aria-label', `Your board ${coord(r, c)}: ${desc}`);
     }
   }
@@ -471,7 +474,7 @@ function renderEnemyBoard(g) {
       else if (reveal) el.classList.add('ship', 'revealed');
       if (last === key(r, c)) el.classList.add('last');
       el.disabled = !playing || g.turn !== 'player' || Boolean(shot);
-      const desc = shot ? (sunk ? `sunk ${ship.name}` : shot) : 'unknown';
+      const desc = shot ? (sunk ? `sunk ${shipName(ship.name)}` : shot) : 'unknown';
       el.setAttribute('aria-label', `Enemy board ${coord(r, c)}: ${desc}`);
     }
   }
@@ -482,7 +485,7 @@ function renderFleet(list, ships, own) {
   for (const spec of FLEET) {
     const ship = ships.find((s) => s.name === spec.name);
     const li = document.createElement('li');
-    li.textContent = `${spec.name} (${spec.size})`;
+    li.textContent = `${shipName(spec.name)} (${spec.size})`;
     if (ship && isSunk(ship)) li.classList.add('sunk');
     if (own && !ship) li.style.opacity = 0.5;
     list.appendChild(li);
@@ -517,9 +520,9 @@ function shake(el, px) {
 function celebrate() {
   if (reducedMotion.matches) return;
   const layer = document.createElement('div');
-  layer.className = 'confetti';
+  layer.className = theme.id === 'pirate' ? 'confetti coins' : 'confetti';
   layer.setAttribute('aria-hidden', 'true');
-  const colors = ['#f5b83d', '#e2463b', '#3fb67a', '#eef4fa', '#5aa9ff'];
+  const colors = theme.confetti;
   for (let i = 0; i < 80; i++) {
     const p = document.createElement('i');
     p.style.left = `${Math.random() * 100}%`;
@@ -573,11 +576,11 @@ function logClass(outcome, who) {
 
 function describe(outcome, who) {
   const at = coord(outcome.row, outcome.col);
-  const actor = who === 'player' ? 'You' : 'AI';
-  if (outcome.result === 'miss') return `${actor} fired at ${at}: miss.`;
+  const actor = who === 'player' ? theme.you : theme.ai;
+  if (outcome.result === 'miss') return `${actor} fired at ${at}: ${theme.missWord}`;
   if (outcome.result === 'hit') return `${actor} fired at ${at}: hit!`;
-  const owner = who === 'player' ? 'the enemy' : 'your';
-  return `${actor} fired at ${at}: sunk ${owner} ${outcome.ship?.name ?? outcome.ship}!`;
+  const owner = who === 'player' ? theme.theirs : theme.yours;
+  return `${actor} fired at ${at}: sunk ${owner} ${shipName(outcome.ship?.name ?? outcome.ship)}!`;
 }
 
 function renderStats() {
@@ -612,7 +615,7 @@ function renderStats() {
 async function shareResult(date) {
   const r = stats.daily.results[date];
   if (!r) return;
-  const text = shareText({ date, ...r }, `${location.origin}${location.pathname}`);
+  const text = shareText({ date, ...r }, `${location.origin}${location.pathname}`, theme.shareTitle);
   try {
     if (navigator.share && window.matchMedia('(pointer: coarse)').matches) {
       await navigator.share({ text });
@@ -630,6 +633,18 @@ function renderSoundButton() {
   const on = !sound.isMuted();
   els.soundBtn.textContent = on ? 'Sound on' : 'Sound off';
   els.soundBtn.setAttribute('aria-pressed', String(on));
+}
+
+function applyTheme() {
+  const root = document.documentElement;
+  root.dataset.theme = theme.id;
+  document.title = theme.docTitle;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.themeColor);
+  document.querySelector('link[rel="icon"]')?.setAttribute('href',
+    `data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>${theme.icon}</text></svg>`);
+  for (const el of document.querySelectorAll('[data-text]')) el.textContent = theme[el.dataset.text];
+  els.themeBtn.setAttribute('aria-pressed', String(theme.id === 'pirate'));
+  sound.setVariant(theme.id);
 }
 
 // ---------- placement (click, keyboard and drag) ----------
@@ -812,6 +827,14 @@ els.statsReset.addEventListener('click', () => {
   renderStats();
   render();
 });
+els.themeBtn.addEventListener('click', () => {
+  theme = theme.id === 'pirate' ? THEMES.navy : THEMES.pirate;
+  saveTheme(storage, theme.id);
+  applyTheme();
+  if (game.phase === 'placement') setStatus(theme.setup);
+  render();
+  sound.play('place');
+});
 els.soundBtn.addEventListener('click', () => {
   sound.setMuted(!sound.isMuted());
   renderSoundButton();
@@ -827,6 +850,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+applyTheme();
 renderSoundButton();
 newGame({ keepSave: true });
 resumeSaved();

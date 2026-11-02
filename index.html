@@ -8,20 +8,22 @@
   <meta name="theme-color" content="#0b1d33">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
   <link rel="stylesheet" href="style.css">
+  <script>try { if (localStorage.getItem('battleship.theme') === 'pirate') document.documentElement.dataset.theme = 'pirate'; } catch {}</script>
 </head>
 <body>
   <header>
-    <h1>Battleship</h1>
-    <p class="tagline">Sink the enemy fleet before the AI sinks yours.</p>
+    <h1 data-text="title">Battleship</h1>
+    <p class="tagline" data-text="tagline">Sink the enemy fleet before the AI sinks yours.</p>
     <div class="toolbar">
       <button id="stats-btn" type="button">Stats &amp; achievements</button>
       <button id="sound-btn" type="button" aria-pressed="true">Sound on</button>
+      <button id="theme-btn" type="button" aria-pressed="false">☠️ Pirate theme</button>
     </div>
   </header>
 
   <main>
     <section id="setup" class="panel" aria-labelledby="setup-title">
-      <h2 id="setup-title">1. Deploy your fleet</h2>
+      <h2 id="setup-title" data-text="setupTitle">1. Deploy your fleet</h2>
       <p class="hint">Pick a ship, then click your board to place it, or drag ships into position. Press <kbd>R</kbd> or use Rotate to turn it. Click or drag a placed ship to move it.</p>
       <div id="ship-picker" class="ship-picker" role="group" aria-label="Ships to place"></div>
       <div class="controls">
@@ -36,7 +38,7 @@
           <option value="medium">Medium</option>
           <option value="hard" selected>Hard</option>
         </select>
-        <button id="start-btn" type="button" class="primary" disabled>Start battle</button>
+        <button id="start-btn" type="button" class="primary" data-text="startBtn" disabled>Start battle</button>
         <span class="or">or</span>
         <button id="daily-btn" type="button" class="daily">Daily challenge</button>
       </div>
@@ -59,7 +61,7 @@
 
     <div class="boards">
       <section class="board-wrap" aria-labelledby="player-title">
-        <h2 id="player-title">Your fleet</h2>
+        <h2 id="player-title" data-text="playerTitle">Your fleet</h2>
         <div id="player-board" class="board" role="grid" aria-label="Your board"></div>
         <ul id="player-fleet" class="fleet" aria-label="Your ships"></ul>
         <label id="radar-row" class="radar-row" hidden>
@@ -68,14 +70,14 @@
         </label>
       </section>
       <section class="board-wrap" aria-labelledby="enemy-title">
-        <h2 id="enemy-title">Enemy waters</h2>
+        <h2 id="enemy-title" data-text="enemyTitle">Enemy waters</h2>
         <div id="enemy-board" class="board enemy" role="grid" aria-label="Enemy board"></div>
         <ul id="enemy-fleet" class="fleet" aria-label="Enemy ships"></ul>
       </section>
     </div>
 
     <section class="panel" aria-labelledby="log-title">
-      <h2 id="log-title">Battle log</h2>
+      <h2 id="log-title" data-text="logTitle">Battle log</h2>
       <ol id="log" class="log" reversed></ol>
     </section>
   </main>
