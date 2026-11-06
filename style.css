@@ -400,6 +400,28 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 .mini i.on { background: var(--accent); }
 .mini i::after { content: ""; position: absolute; inset: 0; background: #f5b83d; opacity: var(--h, 0); }
 
+/* 3D view: each board tilts back like a table top and ships stand up off the water. */
+[data-view="3d"] .board-wrap { perspective: 1000px; perspective-origin: 50% 0; }
+[data-view="3d"] .board {
+  transform: rotateX(30deg); transform-style: preserve-3d;
+  padding: 6px; margin: -12px 0 18px; border-radius: 10px;
+  background: linear-gradient(160deg, #ffffff12, #00000040);
+  box-shadow: 0 28px 34px -14px #000c, inset 0 0 0 1px #ffffff1a;
+}
+[data-view="3d"] .board .label { transform: translateZ(1px); }
+[data-view="3d"] .cell { transform-style: preserve-3d; transition: transform 0.15s, background-color 0.15s; }
+[data-view="3d"] .cell:hover:not(:disabled), [data-view="3d"] .cell.preview-ok, [data-view="3d"] .cell.preview-bad { transform: translateZ(4px); }
+[data-view="3d"] .cell.ship { transform: translateZ(8px); box-shadow: 0 7px 6px -2px #000b; }
+[data-view="3d"] .cell.ship.last { box-shadow: 0 0 0 2px var(--accent), 0 7px 6px -2px #000b; }
+[data-view="3d"] .cell.ship.sunk { transform: translateZ(1px) rotateX(-8deg); box-shadow: none; }
+[data-view="3d"] .cell.ship.revealed { transform: translateZ(3px); }
+[data-view="3d"] .cell.miss::after, [data-view="3d"] .cell.hit::after { transform: translateZ(2px); }
+[data-view="3d"] .fx-hit { box-shadow: 0 -12px 22px #ffb02e99; }
+[data-theme="pirate"][data-view="3d"] .board { background: linear-gradient(160deg, #6b4a2a, #3b2614); }
+[data-theme="pirate"][data-view="3d"] .board .label { color: #f3dfb8; }
+[data-view="3d"] .boards { gap: 1.5rem 4rem; }
+.cannonball.shell { background: radial-gradient(circle at 35% 30%, #c9d3dd, #3d4a57 55%, #10161c); box-shadow: 0 0 12px #ffd27a88; }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
   .fx { display: none; }
@@ -407,6 +429,8 @@ body.dragging, body.dragging * { cursor: grabbing !important; user-select: none;
 
 @media (max-width: 520px) {
   :root { --cell: calc((100vw - 3rem) / 11.5); }
+  /* Perspective widens the near edge of the board, so shrink it to stay inside the screen. */
+  [data-view="3d"] .board { transform: rotateX(30deg) scale(0.9); }
   .tiles { grid-template-columns: repeat(2, 1fr); }
   .badges { grid-template-columns: 1fr; }
   .toasts { left: 1rem; }

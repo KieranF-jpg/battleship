@@ -23,6 +23,7 @@ A browser Battleship game where you play against a computer opponent.
 - **Pirate campaign.** Fight 5 captains in a row, from Barnacle Bill (Easy) to Davy Jones (Hard with power-ups). Each one taunts you and unlocks the next when beaten; progress is saved.
 - **Tips & tricks.** A guide covering checkerboard hunting, playing the odds, finishing off ships and hiding your fleet, with a heatmap of where ships are most likely to be. Every result screen adds one tip based on how you played.
 - **Pirate theme.** The ☠️ **Pirate theme** button reskins the game: a parchment sea chart, wooden hulls with sails, a Man-o'-War, Galleon, Frigate, Brigantine and Sloop, pirate wording, cannon sounds and a shower of gold doubloons when you win. It's deliberately over the top: cannonballs arc across to every target and land with comic-book KABOOMs, a parrot heckles every shot, a pirate swings across the screen on a rope bellowing "ARRRR!" when you win, and a kraken drags a ship under when you lose. The choice is remembered. Gameplay, stats, saves and the daily fleet are the same in both themes.
+- **3D view.** The 🧊 **3D view** button tilts both boards back like a table top, raises the ships off the water with shadows, and drops a shell onto every target before it lands. It works with either theme, with mouse, touch and keyboard, and is remembered between visits. Flat 2D stays the default.
 - **Game feel.** Splash and explosion effects, sinking flashes, screen shake, burning hits, ship hulls with a bow and stern, a victory confetti burst and synthesised sound effects (Web Audio, no audio files) with a remembered mute toggle. Animations are turned off when the system asks for reduced motion.
 
 Every game has a random seed. The enemy fleet and every AI shot come from that seed, so a game is fully described by its seed, difficulty, your fleet and your shots (`src/match.js`). Resume, replay and the daily challenge all rebuild games from that record.
@@ -49,6 +50,7 @@ src/stats.js      lifetime stats, achievements and daily results (localStorage)
 src/daily.js      daily challenge seed, numbering and share text
 src/sound.js      synthesised sound effects (navy and pirate sets) and the mute setting
 src/theme.js      navy and pirate themes: wording, ship names, colours
+src/view.js       optional 3D view: saved choice and the falling-shell effect
 src/pirate.js     pirate-mode effects: cannonballs, booms, parrot, swinging pirate, kraken
 src/campaign.js   campaign captains, taunts and saved progress
 src/tips.js       Tips & tricks heatmap maths and the post-game tip

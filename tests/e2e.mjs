@@ -332,6 +332,34 @@ check(await noAudio.locator('#player-board .cell.hit, #player-board .cell.miss')
   await noAudio.locator('#enemy-board .cell[data-row="0"][data-col="1"]').isEnabled(), 'battle keeps going when audio fails');
 await noAudio.close();
 
+// 3D view: toggles, persists, and placement, dragging and shots still work through the tilted boards.
+await page.evaluate(() => localStorage.clear());
+await page.reload();
+await page.click('#view-btn');
+check(await page.evaluate(() => document.documentElement.dataset.view) === '3d' &&
+  await page.locator('#view-btn').getAttribute('aria-pressed') === 'true', '3D view button switches the view on');
+await page.reload();
+check(await page.evaluate(() => document.documentElement.dataset.view) === '3d' &&
+  await page.locator('#view-btn').getAttribute('aria-pressed') === 'true', '3D view persists across reloads');
+check(await page.locator('#player-board').evaluate((b) => getComputedStyle(b).transform !== 'none'), 'boards are tilted in 3D view');
+await page.evaluate(() => scrollTo(0, 0));
+await dragTo(page.locator('#ship-picker button').first(), cell('player', 0, 5));
+check(await cell('player', 0, 9).evaluate((e) => e.classList.contains('ship')) &&
+  await page.locator('#player-board .cell.ship').count() === 5, 'drag placement lands on the right squares in 3D');
+await cell('player', 9, 0).click();
+check(await page.locator('#player-board .cell.ship').count() === 9 &&
+  await cell('player', 9, 3).evaluate((e) => e.classList.contains('ship')), 'click placement hits the right square in 3D');
+await page.click('#random-btn');
+await page.click('#start-btn');
+await cell('enemy', 9, 9).click();
+await page.waitForFunction(() => document.querySelector('#enemy-board .cell[data-row="9"][data-col="9"]').matches('.hit, .miss, .decoy') &&
+  document.querySelectorAll('#player-board .cell.hit, #player-board .cell.miss').length === 1, null, { timeout: 4000 }).catch(() => {});
+check(await cell('enemy', 9, 9).evaluate((e) => e.matches('.hit, .miss, .decoy') && !e.classList.contains('pending')) &&
+  await page.locator('#player-board .cell.hit, #player-board .cell.miss').count() === 1, 'shots land and the AI replies in 3D');
+await page.screenshot({ path: 'test-results/3d-view.png' });
+await page.click('#view-btn');
+check(await page.evaluate(() => document.documentElement.dataset.view) === '2d', '3D view switches back off');
+
 // Phone: drag a ship from the list down to the board, which starts off-screen.
 const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 const mobile = await phone.newPage();

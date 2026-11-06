@@ -6,9 +6,9 @@ This document covers how the game was tested, the bugs that testing found, and h
 
 | Layer | What it checks | How to run it |
 |---|---|---|
-| Unit tests (42) | Ship placement rules (edges, overlaps, moving a ship), hit/miss/sunk results, rejecting repeat and out-of-bounds shots, turn order, win detection, the AI's targeting behaviour (including 600 simulated games), seeded replay and resume, stats, achievements, the daily challenge, power-ups, campaign progress, themes and the Tips guide | `npm test` |
+| Unit tests (43) | Ship placement rules (edges, overlaps, moving a ship), hit/miss/sunk results, rejecting repeat and out-of-bounds shots, turn order, win detection, the AI's targeting behaviour (including 600 simulated games), seeded replay and resume, stats, achievements, the daily challenge, power-ups, campaign progress, themes and the Tips guide | `npm test` |
 | AI simulation | Plays 6,000 full games (2,000 per difficulty) against random fleets. Fails if the AI ever fires at the same square twice, fires off the board, or needs more than 100 shots | `npm run simulate` |
-| Browser playthrough (84 checks) | Drives the real page in Chromium with Playwright: placing and dragging ships by mouse, touch and keyboard, rotating, randomizing, double-clicking, clicking during the AI's turn, playing a full game, dismissing the end screen, restarting, replay, resume after reload, the daily challenge, both themes, Tips, power-ups, the campaign, a battle with audio blocked, and checking for console errors | `node tests/e2e.mjs` |
+| Browser playthrough (91 checks) | Drives the real page in Chromium with Playwright: placing and dragging ships by mouse, touch and keyboard, rotating, randomizing, double-clicking, clicking during the AI's turn, playing a full game, dismissing the end screen, restarting, replay, resume after reload, the daily challenge, both themes, the 3D view, Tips, power-ups, the campaign, a battle with audio blocked, and checking for console errors | `node tests/e2e.mjs` |
 | Visual review | Screenshots at desktop (1280px) and phone (390px) widths, checked by eye | (manual) |
 
 ## Bugs found and fixed

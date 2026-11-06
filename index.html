@@ -8,7 +8,7 @@
   <meta name="theme-color" content="#0b1d33">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>⚓</text></svg>">
   <link rel="stylesheet" href="style.css">
-  <script>try { if (localStorage.getItem('battleship.theme') === 'pirate') document.documentElement.dataset.theme = 'pirate'; } catch {}</script>
+  <script>try { if (localStorage.getItem('battleship.theme') === 'pirate') document.documentElement.dataset.theme = 'pirate'; if (localStorage.getItem('battleship.view') === '3d') document.documentElement.dataset.view = '3d'; } catch {}</script>
 </head>
 <body>
   <header>
@@ -19,6 +19,7 @@
       <button id="tips-btn" type="button">Tips &amp; tricks</button>
       <button id="sound-btn" type="button" aria-pressed="true">Sound on</button>
       <button id="theme-btn" type="button" aria-pressed="false">☠️ Pirate theme</button>
+      <button id="view-btn" type="button" aria-pressed="false">🧊 3D view</button>
     </div>
   </header>
 

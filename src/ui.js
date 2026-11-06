@@ -5,6 +5,7 @@ import { DAILY_DIFFICULTY, dailyNumber, dailySeed, shareText, todayKey } from '.
 import { ACHIEVEMENTS, emptyStats, loadStats, recordGame, saveStats, winRate } from './stats.js';
 import * as sound from './sound.js';
 import { THEMES, loadTheme, saveTheme } from './theme.js';
+import { loadView, saveView, dropShell } from './view.js';
 import * as pirate from './pirate.js';
 import { adviceFor, placementDensity } from './tips.js';
 import { CAPTAINS, captainById, isUnlocked, loadCampaign, recordCampaign, saveCampaign, taunt } from './campaign.js';
@@ -83,6 +84,7 @@ const els = {
   statsReset: $('stats-reset-btn'),
   soundBtn: $('sound-btn'),
   themeBtn: $('theme-btn'),
+  viewBtn: $('view-btn'),
   tipsBtn: $('tips-btn'),
   tipsDialog: $('tips-dialog'),
   tipsClose: $('tips-close-btn'),
@@ -105,6 +107,7 @@ let lastRecord = null;
 let replayState = null;
 let stats = loadStats(storage);
 let theme = loadTheme(storage);
+let boardView = loadView(storage);
 let campaign = loadCampaign(storage);
 let weapon = 'shot';
 let aimCell = null;
@@ -721,14 +724,16 @@ function ping(board, outcome) {
 }
 
 const pirateFx = () => theme.id === 'pirate' && !reducedMotion.matches;
+const shellFx = () => boardView === '3d' && !reducedMotion.matches;
 
-// In pirate mode a cannonball flies to the target before the impact effects play.
+// In pirate mode a cannonball flies to the target, and in the 3D view a shell drops onto it, before the impact effects play.
 function strike(from, board, outcome) {
-  if (!pirateFx()) return impact(board, outcome);
+  const fly = pirateFx() ? (t) => pirate.cannonball(from, t) : shellFx() ? dropShell : null;
+  if (!fly) return impact(board, outcome);
   try {
     const target = cellEl(board, outcome.row, outcome.col);
     target?.classList.add('pending');
-    pirate.cannonball(from, target).then(() => {
+    fly(target).then(() => {
       target?.classList.remove('pending');
       impact(board, outcome);
       if (pirateFx()) try { pirate.boom(target, outcome.result); } catch { /* decoration */ }
@@ -1218,6 +1223,13 @@ els.themeBtn.addEventListener('click', () => {
   render();
   sound.play('place');
 });
+els.viewBtn.addEventListener('click', () => {
+  boardView = boardView === '3d' ? '2d' : '3d';
+  document.querySelectorAll('.shell').forEach((el) => el.remove());
+  saveView(storage, boardView);
+  applyView();
+  sound.play('place');
+});
 els.soundBtn.addEventListener('click', () => {
   sound.setMuted(!sound.isMuted());
   renderSoundButton();
@@ -1233,7 +1245,13 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
+function applyView() {
+  document.documentElement.dataset.view = boardView;
+  els.viewBtn.setAttribute('aria-pressed', String(boardView === '3d'));
+}
+
 applyTheme();
+applyView();
 renderSoundButton();
 newGame({ keepSave: true });
 resumeSaved();

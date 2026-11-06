@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { THEMES, THEME_KEY, loadTheme, saveTheme } from '../src/theme.js';
+import { VIEW_KEY, loadView, saveView } from '../src/view.js';
 import { FLEET } from '../src/game.js';
 import { shareText } from '../src/daily.js';
 
@@ -42,4 +43,16 @@ test('share text uses the theme title', () => {
   const r = { date: '2026-01-01', won: true, shots: 1, hits: 1, sequence: ['sunk'] };
   assert.ok(shareText(r).startsWith('⚓ Battleship Daily #'));
   assert.ok(shareText(r, '', THEMES.pirate.shareTitle).startsWith('🏴‍☠️ Pirate Battleship Daily #'));
+});
+
+test('3D view choice round-trips through storage and falls back to 2D', () => {
+  const s = memory();
+  assert.equal(loadView(s), '2d');
+  saveView(s, '3d');
+  assert.equal(s.getItem(VIEW_KEY), '3d');
+  assert.equal(loadView(s), '3d');
+  s.setItem(VIEW_KEY, 'bogus');
+  assert.equal(loadView(s), '2d');
+  assert.equal(loadView(null), '2d');
+  assert.equal(loadView({ getItem() { throw new Error('denied'); } }), '2d');
 });
