@@ -31,8 +31,8 @@ const storage = (() => {
 const els = {
   setup: $('setup'),
   picker: $('ship-picker'),
-  rotate: $('rotate-btn'),
-  orientationLabel: $('orientation-label'),
+  horizontal: $('horizontal-btn'),
+  vertical: $('vertical-btn'),
   random: $('random-btn'),
   clear: $('clear-btn'),
   difficulty: $('difficulty'),
@@ -464,7 +464,8 @@ function render() {
   renderPowerups(g);
   renderFleet(els.playerFleet, g.player.ships, true);
   renderFleet(els.enemyFleet, g.enemy.ships, false);
-  els.orientationLabel.textContent = orientation === HORIZONTAL ? 'Horizontal' : 'Vertical';
+  els.horizontal.setAttribute('aria-pressed', String(orientation === HORIZONTAL));
+  els.vertical.setAttribute('aria-pressed', String(orientation === VERTICAL));
   els.start.disabled = !game.allPlayerShipsPlaced();
   renderDailyButton();
   els.newGame.hidden = game.phase === 'placement';
@@ -955,7 +956,11 @@ function applyTheme() {
 // ---------- placement (click, keyboard and drag) ----------
 
 function rotate() {
-  orientation = orientation === HORIZONTAL ? VERTICAL : HORIZONTAL;
+  setOrientation(orientation === HORIZONTAL ? VERTICAL : HORIZONTAL);
+}
+
+function setOrientation(o) {
+  orientation = o;
   if (drag?.moved) updateDragHover();
   render();
 }
@@ -1027,11 +1032,41 @@ els.playerBoard.addEventListener('pointerdown', (e) => {
   drag = { name: ship.name, offset, origin: originOf(ship), start: key(r, c), moved: false };
 });
 
+let dragPoint = null;
+let dragScroll = 0;
+
+// On phones the board is below the ship list, so scroll the page while a ship is held near the top or bottom edge.
+// Touch only: a finger can't scroll mid-drag, but a mouse wheel can.
+function dragAutoScroll() {
+  if (dragScroll) return;
+  dragScroll = requestAnimationFrame(() => {
+    dragScroll = 0;
+    if (!drag || !dragPoint) return;
+    const edge = 70;
+    const y = dragPoint[1];
+    const dist = y > innerHeight - edge ? edge - (innerHeight - y) : y < edge ? -(edge - y) : 0;
+    if (!dist) return;
+    const before = scrollY;
+    window.scrollBy({ top: Math.round(dist / 4), behavior: 'instant' });
+    if (scrollY === before) return;
+    dragTo(...dragPoint);
+    dragAutoScroll();
+  });
+}
+
 document.addEventListener('pointermove', (e) => {
   if (!drag || game.phase !== 'placement') return;
-  const at = cellFromPoint(e.clientX, e.clientY);
+  if (e.pointerType !== 'mouse') {
+    dragPoint = [e.clientX, e.clientY];
+    dragAutoScroll();
+  }
+  if (dragTo(e.clientX, e.clientY)) e.preventDefault();
+});
+
+function dragTo(x, y) {
+  const at = cellFromPoint(x, y);
   if (!drag.moved) {
-    if (!at || key(...at) === drag.start) return;
+    if (!at || key(...at) === drag.start) return false;
     drag.moved = true;
     if (drag.origin) {
       game.player.removeShip(drag.name);
@@ -1041,15 +1076,18 @@ document.addEventListener('pointermove', (e) => {
     document.body.classList.add('dragging');
     render();
   }
-  e.preventDefault();
   drag.at = at;
   updateDragHover();
   renderPlayerBoard(game);
-});
+  return true;
+}
 
 function endDrag(drop) {
   const d = drag;
   drag = null;
+  dragPoint = null;
+  cancelAnimationFrame(dragScroll);
+  dragScroll = 0;
   if (!d || !d.moved) return;
   document.body.classList.remove('dragging');
   suppressClick = true;
@@ -1104,7 +1142,8 @@ els.playerBoard.addEventListener('mouseleave', () => {
   renderPlayerBoard(view());
 });
 
-els.rotate.addEventListener('click', rotate);
+els.horizontal.addEventListener('click', () => setOrientation(HORIZONTAL));
+els.vertical.addEventListener('click', () => setOrientation(VERTICAL));
 els.random.addEventListener('click', () => {
   game.player.placeFleetRandomly();
   selectedShip = null;

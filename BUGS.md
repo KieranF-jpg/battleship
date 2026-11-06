@@ -8,7 +8,7 @@ This document covers how the game was tested, the bugs that testing found, and h
 |---|---|---|
 | Unit tests (42) | Ship placement rules (edges, overlaps, moving a ship), hit/miss/sunk results, rejecting repeat and out-of-bounds shots, turn order, win detection, the AI's targeting behaviour (including 600 simulated games), seeded replay and resume, stats, achievements, the daily challenge, power-ups, campaign progress, themes and the Tips guide | `npm test` |
 | AI simulation | Plays 6,000 full games (2,000 per difficulty) against random fleets. Fails if the AI ever fires at the same square twice, fires off the board, or needs more than 100 shots | `npm run simulate` |
-| Browser playthrough (81 checks) | Drives the real page in Chromium with Playwright: placing and dragging ships by mouse and keyboard, rotating, randomizing, double-clicking, clicking during the AI's turn, playing a full game, dismissing the end screen, restarting, replay, resume after reload, the daily challenge, both themes, Tips, power-ups, the campaign, a battle with audio blocked, and checking for console errors | `node tests/e2e.mjs` |
+| Browser playthrough (84 checks) | Drives the real page in Chromium with Playwright: placing and dragging ships by mouse, touch and keyboard, rotating, randomizing, double-clicking, clicking during the AI's turn, playing a full game, dismissing the end screen, restarting, replay, resume after reload, the daily challenge, both themes, Tips, power-ups, the campaign, a battle with audio blocked, and checking for console errors | `node tests/e2e.mjs` |
 | Visual review | Screenshots at desktop (1280px) and phone (390px) widths, checked by eye | (manual) |
 
 ## Bugs found and fixed
@@ -52,6 +52,13 @@ This document covers how the game was tested, the bugs that testing found, and h
 - **Root cause:** After the player's shot, the game hands the turn to the AI, but the AI's move was only scheduled at the end of the click handler, after the sound, the board redraw and the hit effects. If any of those threw (for example when the browser blocks or doesn't support `AudioContext` on the first sound), the AI's move was never scheduled, so the game stayed on the AI's turn forever. A reload worked because the saved battle is rebuilt from its record.
 - **Fix:** The AI's move is now scheduled straight after the shot, before any sound or effects run, and sound and effects are wrapped so they can never break the game. An older-Safari incompatibility (`structuredClone` in the stats code) was replaced at the same time. Fixed in [PR #4](https://github.com/KieranF-jpg/battleship/pull/4).
 - **Regression test:** `tests/e2e.mjs`, "battle keeps going when audio fails". It makes `AudioContext` throw, fires a shot and checks the AI replies and the board unlocks.
+
+### 6. On phones a ship couldn't be dragged from the list onto the board
+
+- **Symptom:** On a phone the ship list sits at the top of the screen and the board starts below it, off-screen. Holding a ship and dragging down didn't scroll the page, so there was nowhere to drop it.
+- **How it was found:** A touch-drag check at phone size (390×844) after the player reported dragging didn't work.
+- **Root cause:** Ship buttons use `touch-action: none` so the browser doesn't scroll mid-drag, and nothing scrolled the page instead.
+- **Fix:** While a finger holds a ship near the top or bottom edge, the page scrolls and the drop preview follows. Mouse drags are left alone, since a mouse wheel can still scroll. Covered by "touch drag scrolls down to the board and places the ship".
 
 ## Problems checked for and covered by tests
 

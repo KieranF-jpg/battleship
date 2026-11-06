@@ -19,7 +19,12 @@ check(await page.locator('#start-btn').isDisabled(), 'start disabled before plac
 await cell('player', 0, 0).click();
 check(await page.locator('#player-board .cell.ship').count() === 5, 'carrier placed with 5 cells');
 await page.keyboard.press('r');
-check((await page.locator('#orientation-label').textContent()) === 'Vertical', 'R key rotates');
+check(await page.locator('#vertical-btn').getAttribute('aria-pressed') === 'true' &&
+  await page.locator('#horizontal-btn').getAttribute('aria-pressed') === 'false', 'R key rotates');
+await page.click('#horizontal-btn');
+check(await page.locator('#horizontal-btn').getAttribute('aria-pressed') === 'true', 'Horizontal button sets horizontal');
+await page.click('#vertical-btn');
+check(await page.locator('#vertical-btn').getAttribute('aria-pressed') === 'true', 'Vertical button sets vertical');
 await cell('player', 2, 0).click();
 check(await page.locator('#player-board .cell.ship').count() === 9, 'battleship placed vertically');
 await cell('player', 8, 5).click();
@@ -326,6 +331,28 @@ await noAudio.waitForFunction(() => document.querySelectorAll('#player-board .ce
 check(await noAudio.locator('#player-board .cell.hit, #player-board .cell.miss').count() === 1 &&
   await noAudio.locator('#enemy-board .cell[data-row="0"][data-col="1"]').isEnabled(), 'battle keeps going when audio fails');
 await noAudio.close();
+
+// Phone: drag a ship from the list down to the board, which starts off-screen.
+const phone = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+const mobile = await phone.newPage();
+mobile.on('pageerror', (e) => errors.push(e.message));
+const touch = await phone.newCDPSession(mobile);
+await mobile.goto(url);
+await mobile.evaluate(() => localStorage.clear());
+await mobile.reload();
+const touchAt = (type, x, y) => touch.send('Input.dispatchTouchEvent', { type, touchPoints: type === 'touchEnd' ? [] : [{ x, y }] });
+const grab = await mobile.locator('#ship-picker button').first().boundingBox();
+await touchAt('touchStart', grab.x + 10, grab.y + grab.height / 2);
+for (let y = grab.y; y < 834; y += 40) await touchAt('touchMove', grab.x + 10, y);
+await touchAt('touchMove', grab.x + 10, 834);
+await mobile.waitForFunction(() => document.querySelector('#player-board .cell[data-row="4"]').getBoundingClientRect().bottom < innerHeight - 80, null, { timeout: 5000 }).catch(() => {});
+await touchAt('touchMove', 60, 400);
+const drop = await mobile.locator('#player-board .cell[data-row="4"][data-col="1"]').boundingBox();
+await touchAt('touchMove', drop.x + drop.width / 2, drop.y + drop.height / 2);
+await touchAt('touchEnd');
+check(await mobile.locator('#player-board .cell.ship').count() === 5 &&
+  await mobile.locator('#player-board .cell[data-row="4"][data-col="1"].ship').count() === 1, 'touch drag scrolls down to the board and places the ship');
+await phone.close();
 
 check(errors.length === 0, `no console errors ${errors.join(' | ')}`);
 await browser.close();
