@@ -25,10 +25,13 @@
   <main>
     <section id="setup" class="panel" aria-labelledby="setup-title">
       <h2 id="setup-title" data-text="setupTitle">1. Deploy your fleet</h2>
-      <p class="hint">Pick a ship, then click your board to place it, or drag ships into position. Press <kbd>R</kbd> or use Rotate to turn it. Click or drag a placed ship to move it.</p>
+      <p class="hint">Drag a ship from the list onto your board, or pick one and click a square. Choose <strong>Horizontal</strong> or <strong>Vertical</strong> (or press <kbd>R</kbd>) to set its direction. Drag a placed ship to move it.</p>
       <div id="ship-picker" class="ship-picker" role="group" aria-label="Ships to place"></div>
       <div class="controls">
-        <button id="rotate-btn" type="button">Rotate (<span id="orientation-label">Horizontal</span>)</button>
+        <div class="orient" role="group" aria-label="Ship direction">
+          <button id="horizontal-btn" type="button" aria-pressed="true">↔ Horizontal</button>
+          <button id="vertical-btn" type="button" aria-pressed="false">↕ Vertical</button>
+        </div>
         <button id="random-btn" type="button">Randomize</button>
         <button id="clear-btn" type="button">Clear</button>
       </div>

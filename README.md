@@ -8,7 +8,7 @@ A browser Battleship game where you play against a computer opponent.
 
 ## How to play
 
-1. **Place your fleet.** Pick a ship, then click your board to place it, or drag it from the ship list onto the board (works with touch too). Press `R` (or click **Rotate**) to switch between horizontal and vertical. Click or drag a placed ship to move it, or click **Randomize** to place the whole fleet for you.
+1. **Place your fleet.** Pick a ship, then click your board to place it, or drag it from the ship list onto the board (works with touch too). Click **Horizontal** or **Vertical** (or press `R`) to set the direction. Click or drag a placed ship to move it, or click **Randomize** to place the whole fleet for you.
 2. **Choose the AI difficulty** and click **Start battle**, or take on today's **Daily challenge**.
 3. **Fire.** Click a square in *Enemy waters*. Hits are red ✕, misses are white dots, and sunk ships turn dark red. The AI fires back after each of your shots.
 4. Sink all five enemy ships (Carrier 5, Battleship 4, Cruiser 3, Submarine 3, Destroyer 2) before the AI sinks yours.
