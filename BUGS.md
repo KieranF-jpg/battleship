@@ -6,9 +6,9 @@ This document covers how the game was tested, the bugs that testing found, and h
 
 | Layer | What it checks | How to run it |
 |---|---|---|
-| Unit tests (25) | Ship placement rules (edges, overlaps, moving a ship), hit/miss/sunk results, rejecting repeat and out-of-bounds shots, turn order, win detection, the AI's targeting behaviour, seeded replay and resume, stats, achievements and the daily challenge | `npm test` |
+| Unit tests (42) | Ship placement rules (edges, overlaps, moving a ship), hit/miss/sunk results, rejecting repeat and out-of-bounds shots, turn order, win detection, the AI's targeting behaviour (including 600 simulated games), seeded replay and resume, stats, achievements, the daily challenge, power-ups, campaign progress, themes and the Tips guide | `npm test` |
 | AI simulation | Plays 6,000 full games (2,000 per difficulty) against random fleets. Fails if the AI ever fires at the same square twice, fires off the board, or needs more than 100 shots | `npm run simulate` |
-| Browser playthrough | Drives the real page in Chromium with Playwright: placing ships by mouse and keyboard, rotating, randomizing, double-clicking, clicking during the AI's turn, playing a full game, dismissing the end screen, restarting, and checking for console errors | `node tests/e2e.mjs` |
+| Browser playthrough (81 checks) | Drives the real page in Chromium with Playwright: placing and dragging ships by mouse and keyboard, rotating, randomizing, double-clicking, clicking during the AI's turn, playing a full game, dismissing the end screen, restarting, replay, resume after reload, the daily challenge, both themes, Tips, power-ups, the campaign, a battle with audio blocked, and checking for console errors | `node tests/e2e.mjs` |
 | Visual review | Screenshots at desktop (1280px) and phone (390px) widths, checked by eye | (manual) |
 
 ## Bugs found and fixed
@@ -43,7 +43,15 @@ This document covers how the game was tested, the bugs that testing found, and h
 - **How it was found:** Running the suite on Node 24.
 - **Root cause:** The script was `node --test tests/`. Newer Node versions treat that argument as a file to run rather than a folder to search, so they tried to execute the folder itself.
 - **Fix:** The script now passes the test files explicitly (`node --test tests/*.test.js`), which works on every Node version with `node:test`.
-- **Regression check:** `npm test` runs all 25 tests.
+- **Regression check:** `npm test` runs all the unit tests (42 today).
+
+### 5. The game froze after a shot when the browser blocked audio
+
+- **Symptom:** Early in a battle, after firing a shot, the game stopped responding. The AI never fired back and the enemy board stayed locked. Only a page reload fixed it.
+- **How it was found:** Found while playing the live game and reported by the product owner: "I press a button early on and it freezes; I have to refresh."
+- **Root cause:** After the player's shot, the game hands the turn to the AI, but the AI's move was only scheduled at the end of the click handler, after the sound, the board redraw and the hit effects. If any of those threw (for example when the browser blocks or doesn't support `AudioContext` on the first sound), the AI's move was never scheduled, so the game stayed on the AI's turn forever. A reload worked because the saved battle is rebuilt from its record.
+- **Fix:** The AI's move is now scheduled straight after the shot, before any sound or effects run, and sound and effects are wrapped so they can never break the game. An older-Safari incompatibility (`structuredClone` in the stats code) was replaced at the same time. Fixed in [PR #4](https://github.com/KieranF-jpg/battleship/pull/4).
+- **Regression test:** `tests/e2e.mjs`, "battle keeps going when audio fails". It makes `AudioContext` throw, fires a shot and checks the AI replies and the board unlocks.
 
 ## Problems checked for and covered by tests
 
